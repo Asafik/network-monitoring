@@ -44,6 +44,36 @@ export interface ActiveConnectionDetails {
   isWired?: boolean;
 }
 
+export interface OutageLog {
+  id: string;
+  startTime: string;
+  endTime: string;
+  durationSecs: number;
+  durationFormatted: string;
+  date: string;
+}
+
+export interface OutageStats {
+  todayDisconnectsCount: number;
+  todayDowntimeSecs: number;
+  todayDowntimeFormatted: string;
+  weekDowntimeSecs: number;
+  weekDowntimeFormatted: string;
+  monthDowntimeSecs: number;
+  monthDowntimeFormatted: string;
+}
+
+export interface AdvancedLatencyStats {
+  currentPing: number;
+  minPing: number;
+  avgPing: number;
+  maxPing: number;
+  jitter: number;
+  packetLoss: number;
+  spikeCount: number;
+  points: HistoryPoint[];
+}
+
 export interface NetworkMetrics {
   downloadSpeed: number; // bytes per second
   uploadSpeed: number;   // bytes per second
@@ -59,6 +89,9 @@ export interface NetworkMetrics {
   dns: string;
   timestamp: number;
   connectionDetails?: ActiveConnectionDetails;
+  healthScore?: number;
+  healthStatus?: string;
+  pingSpikesCount?: number;
 }
 
 export interface NetworkAdapter {
@@ -98,27 +131,129 @@ export interface IncidentLog {
   duration?: string;
 }
 
+export interface SpeedTestResult {
+  id: string;
+  timestamp: string;
+  date: string;
+  pingMs: number;
+  jitterMs: number;
+  downloadMbps: number;
+  uploadMbps: number;
+}
+
+export type SpeedTestRecord = SpeedTestResult;
+
+export interface SpeedTestProgress {
+  phase: 'ping' | 'download' | 'upload' | 'complete' | 'error';
+  progress: number;
+  currentSpeedMbps: number;
+  pingMs: number;
+  downloadMbps: number;
+  uploadMbps: number;
+  message: string;
+}
+
+export interface DiagnosticCheckItem {
+  step: string;
+  target: string;
+  status: 'PASS' | 'GOOD' | 'WARN' | 'FAIL';
+  responseTimeMs?: number | null;
+  message: string;
+}
+
+export interface QuickDiagnosticsResult {
+  items: DiagnosticCheckItem[];
+  overall_status: string;
+  recommendation?: string | null;
+}
+
+export interface DnsBenchmarkItem {
+  provider: string;
+  ip: string;
+  avgResponseMs: number;
+  minResponseMs: number;
+  maxResponseMs: number;
+  failureRatePercent: number;
+  rating: string;
+}
+
+export interface TracerouteHop {
+  hop: number;
+  ip: string;
+  hostname?: string | null;
+  responseTimeMs?: number | null;
+  status: string;
+}
+
+export interface ManualPingResult {
+  target: string;
+  packetsSent: number;
+  packetsReceived: number;
+  packetsLost: number;
+  packetLossPercent: number;
+  minPingMs: number;
+  avgPingMs: number;
+  maxPingMs: number;
+  jitterMs: number;
+  packetHistory: number[];
+}
+
+export interface AppBandwidthItem {
+  pid: number;
+  name: string;
+  downloadBps: number;
+  uploadBps: number;
+  totalDownloadMb: number;
+  totalUploadMb: number;
+  activeConnections: number;
+  isBlocked?: boolean;
+  isSystem?: boolean;
+}
+
+export interface NetworkSessionRecord {
+  id: string;
+  adapterName: string;
+  ssid?: string | null;
+  startTime: string;
+  endTime: string;
+  durationFormatted: string;
+  downloadGb: number;
+  uploadGb: number;
+  avgPingMs: number;
+  date: string;
+}
+
 export interface PingTarget {
   id: string;
   name: string;
   host: string;
-  status: 'active' | 'error' | 'testing';
-  latency: number;
-  minLatency: number;
-  maxLatency: number;
-  avgLatency: number;
-  packetLoss: number;
+  category: 'dns' | 'gateway' | 'custom' | 'game';
+  currentPing?: number;
+  minPing?: number;
+  maxPing?: number;
+  avgPing?: number;
+  packetLoss?: number;
   history: number[];
+  status: 'online' | 'degraded' | 'offline';
 }
 
 export interface AppSettings {
-  pollingIntervalMs: number;
-  pingIntervalMs: number;
-  defaultPingHost: string;
-  autoStartWithWindows: boolean;
-  startMinimizedToTray: boolean;
-  notifyOnDisconnect: boolean;
-  notifyOnHighLatency: boolean;
-  latencyThresholdMs: number;
-  theme: 'dark' | 'midnight' | 'cyber';
+  autoRefreshInterval: number; // ms
+  enableNotifications: boolean;
+  enableSoundAlerts: boolean;
+  latencyWarningThreshold: number; // ms
+  packetLossWarningThreshold: number; // percentage
+  dailyDataLimitGb?: number;
+  weeklyDataLimitGb?: number;
+  monthlyDataLimitGb?: number;
+  quotaWarningThresholdPercent?: number; // 50, 75, 80, 90, 100
+  notificationCooldownSecs?: number;
+  selectedDnsPreset: 'system' | 'cloudflare' | 'google' | 'adguard';
+  startWithWindows: boolean;
+  minimizeToTray: boolean;
+  theme: 'light' | 'dark' | 'system';
+  showSpeedWidget?: boolean;
+  speedWidgetStyle?: 'classic' | 'glass' | 'compact';
 }
+
+export type NavTab = 'dashboard' | 'speedtest' | 'diagnostics' | 'apps' | 'adapters' | 'history' | 'settings';

@@ -1,16 +1,15 @@
-import React from 'react';
 import {
   IconDashboard,
+  IconGauge,
   IconAdapters,
   IconHistory,
   IconDiagnostics,
   IconSettings,
   IconWifi,
   IconActivity,
+  IconGrid,
 } from './Icons';
-import { NetworkMetrics } from '../types/network';
-
-export type NavTab = 'dashboard' | 'adapters' | 'history' | 'diagnostics' | 'settings';
+import { NetworkMetrics, NavTab } from '../types/network';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -21,9 +20,11 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, metrics }) => {
   const navItems: { id: NavTab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <IconDashboard size={19} /> },
+    { id: 'speedtest', label: 'Speed Test & Tools', icon: <IconGauge size={19} /> },
+    { id: 'diagnostics', label: 'Diagnostics & Ping', icon: <IconDiagnostics size={19} /> },
+    { id: 'apps', label: 'Applications', icon: <IconGrid size={19} /> },
     { id: 'adapters', label: 'Network Adapters', icon: <IconAdapters size={19} /> },
     { id: 'history', label: 'Historical Stats', icon: <IconHistory size={19} /> },
-    { id: 'diagnostics', label: 'Diagnostics & Ping', icon: <IconDiagnostics size={19} /> },
     { id: 'settings', label: 'Settings', icon: <IconSettings size={19} /> },
   ];
 

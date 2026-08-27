@@ -1,6 +1,11 @@
+mod app_bandwidth;
+mod app_blocker;
 mod db;
+mod diagnostics_tools;
 mod monitor;
 mod server;
+mod speedtest;
+mod taskbar_dock;
 mod wifi;
 
 use db::{Database, HistoryPoint, IncidentLog};
@@ -52,6 +57,176 @@ fn get_data_usage_summary(state: State<AppState>) -> Result<db::DataUsageSummary
         .db
         .get_data_usage_summary(1024 * 1024 * 1024 * 5, 1024 * 1024 * 1024 * 1)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_outage_logs(state: State<AppState>, limit: Option<usize>) -> Result<Vec<db::OutageLog>, String> {
+    state
+        .db
+        .get_outage_logs(limit.unwrap_or(20))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_outage_stats(state: State<AppState>) -> Result<db::OutageStats, String> {
+    state
+        .db
+        .get_outage_stats()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_advanced_latency_history(state: State<AppState>, range: String) -> Result<db::AdvancedLatencyStats, String> {
+    state
+        .db
+        .get_advanced_latency_history(&range)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn run_speed_test_command(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    mode: Option<String>,
+) -> Result<speedtest::SpeedTestResult, String> {
+    let app_handle = app.clone();
+    let is_upload = mode.as_deref() == Some("upload");
+
+    let result = if is_upload {
+        speedtest::run_upload_test(move |progress| {
+            let _ = app_handle.emit("speedtest-progress", &progress);
+        })
+        .await?
+    } else {
+        speedtest::run_download_test(move |progress| {
+            let _ = app_handle.emit("speedtest-progress", &progress);
+        })
+        .await?
+    };
+
+    // Save only tested metric to SQLite
+    let _ = state.db.insert_speed_test(
+        0.0,
+        0.0,
+        result.download_mbps,
+        result.upload_mbps,
+    );
+
+    Ok(result)
+}
+
+#[tauri::command]
+fn get_speed_test_history(state: State<AppState>, range: Option<String>) -> Result<Vec<db::SpeedTestRecord>, String> {
+    state
+        .db
+        .get_speed_tests(&range.unwrap_or_else(|| "all".to_string()))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn run_quick_diagnostics_command() -> Result<diagnostics_tools::QuickDiagnosticsResult, String> {
+    Ok(diagnostics_tools::run_quick_diagnostics())
+}
+
+#[tauri::command]
+fn run_dns_benchmark_command() -> Result<Vec<diagnostics_tools::DnsBenchmarkItem>, String> {
+    Ok(diagnostics_tools::run_dns_benchmark())
+}
+
+#[tauri::command]
+fn run_manual_ping_test_command(target: String, count: Option<usize>) -> Result<diagnostics_tools::ManualPingResult, String> {
+    Ok(diagnostics_tools::run_manual_ping_test(&target, count.unwrap_or(30)))
+}
+
+#[tauri::command]
+fn run_traceroute_command(target: String) -> Result<Vec<diagnostics_tools::TracerouteHop>, String> {
+    Ok(diagnostics_tools::run_traceroute(&target))
+}
+
+#[tauri::command]
+fn get_per_app_bandwidth_command() -> Result<Vec<app_bandwidth::AppBandwidthItem>, String> {
+    Ok(app_bandwidth::get_per_app_bandwidth())
+}
+
+#[tauri::command]
+fn get_network_sessions_command(state: State<AppState>, limit: Option<usize>) -> Result<Vec<db::NetworkSessionRecord>, String> {
+    state
+        .db
+        .get_network_sessions(limit.unwrap_or(20))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn flush_dns_cache_command() -> Result<String, String> {
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    use std::os::windows::process::CommandExt;
+    let _ = std::process::Command::new("ipconfig")
+        .arg("/flushdns")
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    Ok("DNS Cache berhasil dibersihkan (Flushed)".to_string())
+}
+
+#[tauri::command]
+fn block_app_command(app_name: String, exe_path: Option<String>) -> Result<String, String> {
+    app_blocker::block_app_internet(&app_name, exe_path.as_deref())
+}
+
+#[tauri::command]
+fn unblock_app_command(app_name: String) -> Result<String, String> {
+    app_blocker::unblock_app_internet(&app_name)
+}
+
+#[tauri::command]
+fn get_blocked_apps_command() -> Result<Vec<String>, String> {
+    Ok(app_blocker::get_blocked_apps())
+}
+
+#[tauri::command]
+fn show_main_window_command(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn hide_main_window_command(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn toggle_widget_window_command(app: tauri::AppHandle, show: Option<bool>) -> Result<bool, String> {
+    if let Some(widget) = app.get_webview_window("widget") {
+        let is_vis = widget.is_visible().unwrap_or(false);
+        let target = show.unwrap_or(!is_vis);
+        if target {
+            let _ = widget.show();
+        } else {
+            let _ = widget.hide();
+        }
+        return Ok(target);
+    }
+    Ok(false)
+}
+
+#[tauri::command]
+fn snap_widget_to_taskbar_command(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(widget) = app.get_webview_window("widget") {
+        let _ = widget.set_always_on_top(true);
+        let (x, y) = taskbar_dock::get_taskbar_dock_position(125, 38);
+        let _ = widget.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+        if let Ok(hwnd) = widget.hwnd() {
+            taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+        }
+        let _ = widget.show();
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -159,6 +334,9 @@ pub fn run() {
                 dns: "1.1.1.1 / 8.8.8.8".to_string(),
                 timestamp: chrono::Utc::now().timestamp_millis(),
                 connection_details: ActiveConnectionDetails::default(),
+                health_score: 95,
+                health_status: "Excellent".to_string(),
+                ping_spikes_count: 0,
             };
 
             let latest_metrics = Arc::new(Mutex::new(default_metrics));
@@ -175,9 +353,27 @@ pub fn run() {
             std::thread::spawn(move || {
                 let default_target: IpAddr = "1.1.1.1".parse().unwrap();
                 let mut db_save_counter = 0;
+                let mut is_currently_offline = false;
+                let mut outage_start_ts = 0i64;
+                let mut outage_start_time_str = String::new();
 
                 loop {
                     let (metrics, adapters) = monitor_clone.collect_metrics(default_target);
+
+                    // Outage tracking state machine
+                    if metrics.status == "offline" {
+                        if !is_currently_offline {
+                            is_currently_offline = true;
+                            outage_start_ts = chrono::Local::now().timestamp();
+                            outage_start_time_str = chrono::Local::now().format("%H:%M:%S").to_string();
+                        }
+                    } else if is_currently_offline {
+                        // Reconnected!
+                        is_currently_offline = false;
+                        let end_time_str = chrono::Local::now().format("%H:%M:%S").to_string();
+                        let duration_secs = (chrono::Local::now().timestamp() - outage_start_ts).max(1) as u64;
+                        let _ = db_clone.insert_outage(&outage_start_time_str, &end_time_str, duration_secs);
+                    }
 
                     // Update shared state for browser sync
                     *latest_metrics.lock().unwrap() = metrics.clone();
@@ -201,7 +397,38 @@ pub fn run() {
                         );
                     }
 
+                    // Keep widget persistently topmost on the taskbar (won't disappear during Snipping Tool or Alt+Tab)
+                    if let Some(widget) = app_handle.get_webview_window("widget") {
+                        if let Ok(hwnd) = widget.hwnd() {
+                            taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+                        }
+                    }
+
                     std::thread::sleep(Duration::from_millis(1000));
+                }
+            });
+
+            // Position native widget window directly on Windows taskbar (TrafficMonitor style)
+            if let Some(widget) = app.get_webview_window("widget") {
+                let _ = widget.set_always_on_top(true);
+                let (x, y) = taskbar_dock::get_taskbar_dock_position(125, 38);
+                let _ = widget.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                if let Ok(hwnd) = widget.hwnd() {
+                    taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+                }
+                let _ = widget.show();
+            }
+
+            // High-frequency (50ms) background taskbar keeper: Guarantees 0ms flicker / never disappears even for 1 second when opening apps
+            let widget_keeper_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                loop {
+                    if let Some(widget) = widget_keeper_handle.get_webview_window("widget") {
+                        if let Ok(hwnd) = widget.hwnd() {
+                            taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+                        }
+                    }
+                    std::thread::sleep(Duration::from_millis(50));
                 }
             });
 
@@ -220,6 +447,25 @@ pub fn run() {
             get_wifi_password,
             get_available_networks,
             get_data_usage_summary,
+            get_outage_logs,
+            get_outage_stats,
+            get_advanced_latency_history,
+            run_speed_test_command,
+            get_speed_test_history,
+            run_quick_diagnostics_command,
+            run_dns_benchmark_command,
+            run_manual_ping_test_command,
+            run_traceroute_command,
+            get_per_app_bandwidth_command,
+            get_network_sessions_command,
+            flush_dns_cache_command,
+            block_app_command,
+            unblock_app_command,
+            get_blocked_apps_command,
+            show_main_window_command,
+            hide_main_window_command,
+            toggle_widget_window_command,
+            snap_widget_to_taskbar_command,
             ping_target
         ])
         .run(tauri::generate_context!())

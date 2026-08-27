@@ -29,6 +29,12 @@ pub struct NetworkMetrics {
     pub timestamp: i64,
     #[serde(rename = "connectionDetails")]
     pub connection_details: ActiveConnectionDetails,
+    #[serde(rename = "healthScore")]
+    pub health_score: u32,
+    #[serde(rename = "healthStatus")]
+    pub health_status: String,
+    #[serde(rename = "pingSpikesCount")]
+    pub ping_spikes_count: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -205,6 +211,31 @@ impl NetworkMonitor {
 
         let now_ts = chrono::Utc::now().timestamp_millis();
 
+        // Calculate Network Health Score (0-100)
+        let mut score: f64 = 100.0;
+        if ping_val > 25.0 {
+            score -= ((ping_val - 25.0) * 0.35).min(30.0);
+        }
+        if jitter_val > 2.5 {
+            score -= ((jitter_val - 2.5) * 1.8).min(20.0);
+        }
+        score -= (packet_loss as f64 * 2.5).min(50.0);
+
+        if status == "offline" {
+            score = 0.0;
+        }
+
+        let health_score_final = (score.max(0.0).min(100.0).round()) as u32;
+        let health_status_final = match health_score_final {
+            90..=100 => "Excellent",
+            75..=89 => "Good",
+            60..=74 => "Fair",
+            40..=59 => "Poor",
+            _ => "Critical",
+        }.to_string();
+
+        let ping_spikes = pings.iter().filter(|&&p| p > 75.0).count() as u32;
+
         // Determine connection details (Wi-Fi vs Ethernet)
         let connection_details = if let Some(wifi_info) = get_active_wifi_details() {
             wifi_info
@@ -238,6 +269,9 @@ impl NetworkMonitor {
             dns: "1.1.1.1 / 8.8.8.8".to_string(),
             timestamp: now_ts,
             connection_details,
+            health_score: health_score_final,
+            health_status: health_status_final,
+            ping_spikes_count: ping_spikes,
         };
 
         (metrics, adapter_list)
