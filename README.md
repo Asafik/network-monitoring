@@ -15,136 +15,108 @@
 
 ---
 
-## 📖 English Overview
+## 🚀 Cara Menjalankan Aplikasi (How to Run)
 
-**NetPulse Network Monitor** is a state-of-the-art, high-performance desktop application for Windows 10 and 11. Built with **Rust (Tauri v2)** and **React 19**, it provides real-time per-second bandwidth tracking, an authentic **TrafficMonitor-style Windows Taskbar Speed Meter**, granular **Per-App Internet Blocking**, native ICMP latency diagnostics, and local SQLite history persistence with an ultra-low CPU (<0.3%) and RAM footprint (<30MB).
+> ⚠️ **PENTING (Administrator Privileges)**:
+> Fitur **Internet Kill Switch (Pemutus Internet Aplikasi)** membutuhkan hak akses **Administrator** untuk mengontrol Windows Firewall di tingkat kernel.
+
+### 🌟 Cara 1: 1-Klik Launcher (Paling Mudah)
+1. Buka folder project di File Explorer (`F:\network-monitor`).
+2. **Klik kanan file `run-dev-admin.bat`** lalu pilih **`Run as administrator`** *(atau cukup klik 2x)*.
+3. Klik **"Yes"** pada jendela konfirmasi Windows UAC.
+4. Aplikasi desktop dan meteran kecepatan taskbar akan langsung terbuka otomatis!
 
 ---
 
-## ✨ Key Features
+### 💻 Cara 2: Lewat Terminal / Command Prompt
+Buka terminal (PowerShell / Command Prompt / Terminal VSCode):
+```bash
+# Jalankan launcher admin otomatis
+npm run dev:admin
+
+# Atau jalankan tauri dev biasa
+npm run tauri:dev
+```
+
+---
+
+### 📦 Cara 3: Build File Installer Standalone (.exe)
+Untuk membuat file installer / executable mandiri:
+```bash
+npm run tauri:build
+```
+File `.exe` hasil build akan berada di:
+`src-tauri/target/release/network-monitor.exe`
+
+---
+
+## 🌐 Mode Web Browser Preview
+Selain aplikasi desktop native, Anda juga bisa membuka antarmuka pemantau di browser web favorit Anda (Chrome, Brave, Edge):
+- Buka browser dan akses: **`http://localhost:1420`**
+- Data tersinkronisasi **dua arah secara real-time** dengan backend Rust lokal (`port 9090`).
+
+---
+
+## ✨ Fitur-Fitur Utama (Key Features)
 
 ### 1. ⚡ Native Windows Taskbar Speed Meter (TrafficMonitor Style)
-- **Direct OS Taskbar Docking**: Seamlessly sits directly on the Windows 10/11 taskbar next to the system tray (`^` chevron).
-- **Authentic Traffic Colors**: Orange/Amber (`↑:`) for Upload and Lime Green (`↓:`) for Download with crisp anti-aliased font and drop-shadows.
-- **Zero-Latency Anti-Flicker Keeper**: 50ms Win32 Z-order thread ensures the widget **never disappears or flickers**, even when launching heavy games, opening fullscreen apps, or switching windows.
-- **Full Screenshot & Snipping Tool Support**: Configured via `SetWindowDisplayAffinity(WDA_NONE)` so the widget is captured accurately during `Win + Shift + S` snips.
-- **Interactive Controls**: Freely drag anywhere along the taskbar, **double-click** to open the main dashboard, or **right-click** for quick options like *Snap to Taskbar* or *Theme Switch*.
+- **Menempel Langsung di Taskbar**: Berada di taskbar Windows 10/11 di sebelah kiri ikon system tray (`^`).
+- **Dynamic 410px Clearance**: Posisi dinamis yang rapi, tidak akan bertumpuk saat ikon lokasi Windows (`🧭`), mikrofon, atau notifikasi tray muncul.
+- **Warna Kontras Khas TrafficMonitor**: Oranye/Amber (`↑:`) untuk Upload dan Hijau Terang (`↓:`) untuk Download dengan drop-shadow tajam.
+- **50ms Anti-Flicker Keeper**: Thread Win32 Z-order menjaga widget **tidak pernah hilang atau kedip 1 detik pun** saat membuka aplikasi lain.
+- **Dukungan Penuh Snipping Tool**: Mendukung tangkapan layar `Win + Shift + S` (`SetWindowDisplayAffinity(WDA_NONE)`).
+- **Interaktif**: Bisa digeser (*drag*), **klik ganda** untuk buka Dashboard utama, atau **klik kanan** untuk menu cepat.
 
-### 2. 🛡️ Application Internet Blocker (Firewall Cut-Off)
-- **One-Click Internet Cut-Off**: Cut off internet access for specific installed Windows applications (.exe) using native Windows Firewall rules (`netsh advfirewall firewall`).
-- **Installed Applications Discovery**: Scans installed applications from registry and common paths for easy 1-click management.
-- **Active Block List**: View and unblock apps anytime with instant system notification feedback.
+### 2. 🛡️ Multi-Vector Application Internet Kill Switch
+- **Pemutus Internet Game Microsoft Store (UWP / AppX)**: Mampu memutus internet game Microsoft Store (*seperti Angry Birds 2*) menggunakan aturan `-Package <PackageFamilyName>`.
+- **Pemutus Internet Browser & Software PC**: Memutus akses internet browser (*Brave, Chrome, Edge*) dan program Win32 lainnya secara instan.
+- **Zero UI Freeze**: Eksekusi background asynchronous (`tokio::task::spawn_blocking`), antarmuka desktop tetap lancar 60 FPS tanpa macet/not-responding.
+- **Penyimpanan Permanen 3 Lapis**: Status blokir tersimpan di `localStorage`, SQLite database lokal, dan Windows Firewall (anti-reset saat refresh F5).
 
-### 3. 🚀 Speed Test & Advanced Diagnostics Suite
-- **Built-in Speed Test**: Test download speed, upload speed, ping, and jitter with live progress animation.
-- **1-Click Quick Diagnostics**: Instant health checks on Default Gateway, Local DNS, Cloudflare (1.1.1.1), Google (8.8.8.8), packet loss, and MTU.
-- **DNS Benchmark**: Compare latency across Cloudflare, Google DNS, Quad9, OpenDNS, and Local DNS.
-- **Manual Ping & Traceroute**: Hop-by-hop route diagnostics and customizable ping test targets.
-- **Flush DNS Cache**: Instant DNS cache purge utility with single-click execution.
+### 3. 🚀 Speed Test & Diagnostik Jaringan Lengkap
+- **Speed Test Akurat**: Uji kecepatan Download, Upload, Ping, dan Jitter dengan animasi gauge interaktif.
+- **1-Click Quick Diagnostics**: Cek kesehatan Gateway, DNS Lokal, Cloudflare (1.1.1.1), Google (8.8.8.8), packet loss, dan MTU.
+- **DNS Benchmark**: Perbandingan latensi antar provider DNS (Cloudflare, Google, Quad9, OpenDNS, Local).
+- **Manual Ping & Traceroute**: Pelacakan hop rute jaringan dan uji ping target kustom.
+- **Flush DNS Cache**: Tombol 1-klik untuk membersihkan cache DNS Windows.
 
-### 4. 📊 Live Bandwidth & Historical Tracking
-- **Real-Time Waveform Chart**: Live bandwidth visualization updating every second.
-- **Network Health Score**: Instant rating (0-100) analyzing ping, jitter, and packet loss stability.
-- **Per-App Bandwidth & Active Sessions**: Monitor active process connections, remote addresses, and ports.
-- **Data Quota & Outage Tracker**: Daily, weekly, and monthly data consumption tracking alongside outage log history.
+### 4. 📊 Pemantau Bandwidth & Riwayat Konsumsi Kuota
+- **Grafik Gelombang Real-Time**: Visualisasi grafik lalu lintas unduh & unggah per detik.
+- **Skor Kesehatan Jaringan (Network Health 0-100)**: Penilaian stabilitas koneksi otomatis.
+- **Per-App Bandwidth & Active Sockets**: Memantau konsumsi data setiap aplikasi yang sedang berjalan beserta port & alamat IP tujuannya.
+- **Riwayat Kuota & Deteksi Internet Putus (Outage Log)**: Pencatatan konsumsi data harian, mingguan, bulanan, dan histori downtime internet.
 
-### 5. 🔑 Wi-Fi Password Recovery & Wireless Scanner
-- **Saved Wi-Fi Password Viewer**: Reveal and copy passwords for any Wi-Fi network previously connected to your PC.
-- **Wireless Signal Scanner**: Scan nearby Wi-Fi SSIDs with signal strength (%), frequency band (2.4GHz / 5GHz), channel, and encryption type.
-- **Ethernet Gigabit Detection**: Detects wired LAN status and link speeds automatically.
+### 5. 🔑 Wi-Fi Password Recovery & Pemindai Sinyal
+- **Lihat Password Wi-Fi Tersimpan**: Menampilkan dan menyalin kata sandi jaringan Wi-Fi yang pernah tersambung ke laptop/PC.
+- **Pemindai Sinyal Wi-Fi**: Memindai SSID Wi-Fi sekitar lengkap dengan persentase sinyal (%), frekuensi 2.4GHz / 5GHz, channel, dan tipe enkripsi.
+- **Deteksi LAN Gigabit**: Menampilkan status dan kecepatan tautan kabel LAN.
 
-### 6. 🪟 Desktop Integration & Local API Sync
-- **System Tray Integration**: Minimize to tray on close (X) for continuous background monitoring.
-- **Embedded API Server (`127.0.0.1:9090`)**: Access metrics and sync live data across desktop and browser tabs.
-
----
-
-## 🇮🇩 Ringkasan Fitur (Bahasa Indonesia)
-
-- ⚡ **Speed Meter Taskbar ala TrafficMonitor**: Menempel langsung di taskbar Windows 11 sebelah ikon tray (`^`), warna oranye (`↑:`) & hijau (`↓:`), anti-hilang saat buka aplikasi lain, dan ikut tertangkap saat screenshot (`Win+Shift+S`).
-- 🛡️ **Pemutus Internet Aplikasi (App Blocker)**: Memutus koneksi internet aplikasi tertentu secara instan lewat Windows Firewall asli.
-- 🚀 **Speed Test & Diagnostik Lengkap**: Uji kecepatan unduh/unggah, benchmark DNS (Cloudflare vs Google vs Quad9), ping manual, traceroute, dan tombol Flush DNS.
-- 🔑 **Intip Password Wi-Fi**: Menampilkan dan menyalin kata sandi semua jaringan Wi-Fi yang tersimpan di Windows.
-- 📡 **Pemindai Sinyal Wi-Fi**: Mendeteksi sinyal Wi-Fi di sekitar lengkap dengan persentase sinyal (%), frekuensi 2.4/5GHz, dan tipe keamanan.
-- 💾 **100% Offline & Ringan**: Database SQLite lokal tanpa koneksi cloud, konsumsi RAM <30MB, dan CPU <0.3%.
+### 6. 💾 100% Offline, Aman & Super Ringan
+- Menggunakan database **SQLite offline** di komputer Anda tanpa koneksi cloud luar.
+- Sangat hemat sumber daya: RAM <30MB dan CPU <0.3%.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Component | Technology |
+| Komponen | Teknologi |
 |---|---|
 | **Desktop Framework** | [Tauri v2](https://v2.tauri.app/) |
-| **Backend Core** | [Rust](https://www.rust-lang.org/) (`sysinfo`, `rusqlite`, `winping`, `windows-sys`) |
+| **Backend Core** | [Rust](https://www.rust-lang.org/) (`sysinfo`, `rusqlite`, `winping`, `tokio`) |
 | **Frontend UI** | [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
 | **Build Tool** | [Vite](https://vitejs.dev/) |
 | **Database** | [SQLite](https://sqlite.org/) (Embedded local offline database) |
-| **Styling** | Vanilla CSS (GPU-Accelerated, High-DPI optimized) |
+| **Styling** | Vanilla CSS (GPU-Accelerated, Dark Mode) |
 
 ---
 
-## 📥 Installation & Setup
+## 📥 Prasyarat Pengembangan (Prerequisites)
 
-### 1. Prerequisites
-- **Node.js** (v18 or newer): [Download Node.js](https://nodejs.org/)
+- **Node.js** (v18 ke atas): [Download Node.js](https://nodejs.org/)
 - **Rust & Cargo**: [Install Rust via rustup](https://rustup.rs/)
 - **Visual Studio C++ Build Tools**: [Download Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
 
-### 2. Clone Repository
-```bash
-git clone https://github.com/Asafik/network-monitoring.git
-cd network-monitoring
-```
-
-### 3. Install Dependencies
-```bash
-npm install
-```
-
-### 4. Run in Development Mode
-```bash
-npm run tauri dev
-```
-
-### 5. Build Standalone Release (.exe)
-```bash
-npm run tauri build
-```
-The compiled executable will be located at:
-`src-tauri/target/release/network-monitor.exe`
-
 ---
 
-## 📁 Project Structure
-
-```
-network-monitoring/
-├── src-tauri/                 # Rust Native Backend
-│   ├── src/
-│   │   ├── main.rs            # Entrypoint & GPU acceleration configuration
-│   │   ├── lib.rs             # Tauri lifecycle, Tray, commands & monitoring loop
-│   │   ├── taskbar_dock.rs    # Win32 taskbar hook, positioning & topmost keeper
-│   │   ├── app_blocker.rs     # Windows Firewall application blocker engine
-│   │   ├── diagnostics_tools.rs # Speed test, ping, traceroute, DNS benchmark
-│   │   ├── monitor.rs         # sysinfo bandwidth & ICMP latency engine
-│   │   ├── wifi.rs            # WLAN interfaces, nearby scanner & passwords
-│   │   ├── db.rs              # SQLite database schema & queries
-│   │   └── server.rs          # Local embedded HTTP server (port 9090)
-│   ├── Cargo.toml             # Rust dependencies
-│   └── tauri.conf.json        # Multi-window & taskbar widget configuration
-├── src/                       # Frontend React 19 Application
-│   ├── components/            # Sidebar, Icons, and reusable UI widgets
-│   ├── views/                 # StandaloneWidget, Dashboard, SpeedTest, Diagnostics, Apps, Adapters, History, Settings
-│   ├── types/                 # TypeScript interfaces and data models
-│   ├── utils/                 # Unit formatters (Bps, KB/s, MB/s)
-│   ├── main.tsx               # Dual router (Dashboard vs Native Taskbar Widget)
-│   ├── App.tsx                # Main state & IPC event coordinator
-│   └── index.css              # Design tokens & typography
-├── package.json               # Node.js dependencies & scripts
-└── README.md                  # Project documentation
-```
-
----
-
-## 📄 License
-This project is open-source and available under the [MIT License](LICENSE).
+## 📄 Lisensi
+Proyek ini bersifat open-source di bawah lisensi [MIT License](LICENSE).
