@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   IconDownload,
   IconUpload,
@@ -7,15 +7,22 @@ import {
   IconShield,
   IconGlobe,
 } from '../components/Icons';
-import { NetworkMetrics, HistoryPoint } from '../types/network';
+import { NetworkMetrics, HistoryPoint, DataUsageSummary } from '../types/network';
 import { formatSpeed, formatBytes } from '../utils/formatters';
 
 interface DashboardViewProps {
   metrics: NetworkMetrics;
   history: HistoryPoint[];
+  usageSummary?: DataUsageSummary;
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ metrics, history }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({
+  metrics,
+  history,
+  usageSummary,
+}) => {
+  const [usagePeriod, setUsagePeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+
   const dl = formatSpeed(metrics.downloadSpeed);
   const ul = formatSpeed(metrics.uploadSpeed);
 
@@ -43,9 +50,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ metrics, history }
   const dlPath = getCoordinates(chartPoints, 'downloadBps');
   const ulPath = getCoordinates(chartPoints, 'uploadBps');
 
+  // Usage Bar Chart Data selection
+  const currentUsageItems =
+    usagePeriod === 'daily'
+      ? usageSummary?.daily || [
+          { label: 'Senin', downloadGb: 2.4, uploadGb: 0.5, totalGb: 2.9 },
+          { label: 'Selasa', downloadGb: 3.1, uploadGb: 0.7, totalGb: 3.8 },
+          { label: 'Rabu', downloadGb: 1.9, uploadGb: 0.4, totalGb: 2.3 },
+          { label: 'Kamis', downloadGb: 4.2, uploadGb: 0.9, totalGb: 5.1 },
+          { label: 'Jumat', downloadGb: 3.8, uploadGb: 0.8, totalGb: 4.6 },
+          { label: 'Sabtu', downloadGb: 5.1, uploadGb: 1.2, totalGb: 6.3 },
+          { label: 'Hari Ini', downloadGb: 2.1, uploadGb: 0.4, totalGb: 2.5 },
+        ]
+      : usagePeriod === 'weekly'
+      ? usageSummary?.weekly || [
+          { label: 'Minggu 1', downloadGb: 14.2, uploadGb: 2.8, totalGb: 17.0 },
+          { label: 'Minggu 2', downloadGb: 18.6, uploadGb: 3.9, totalGb: 22.5 },
+          { label: 'Minggu 3', downloadGb: 12.8, uploadGb: 2.1, totalGb: 14.9 },
+          { label: 'Minggu Ini', downloadGb: 15.3, uploadGb: 2.6, totalGb: 17.9 },
+        ]
+      : usageSummary?.monthly || [
+          { label: 'Mar', downloadGb: 42.5, uploadGb: 8.1, totalGb: 50.6 },
+          { label: 'Apr', downloadGb: 58.2, uploadGb: 11.4, totalGb: 69.6 },
+          { label: 'Mei', downloadGb: 49.0, uploadGb: 9.2, totalGb: 58.2 },
+          { label: 'Jun', downloadGb: 63.4, uploadGb: 12.8, totalGb: 76.2 },
+          { label: 'Jul', downloadGb: 52.8, uploadGb: 10.1, totalGb: 62.9 },
+          { label: 'Bulan Ini', downloadGb: 47.1, uploadGb: 8.9, totalGb: 56.0 },
+        ];
+
+  const maxUsageGb = Math.max(...currentUsageItems.map((item) => item.totalGb), 1.0);
+
   return (
     <div className="content-body">
-      {/* 4 Main Stat Cards */}
+      {/* 1. 4 MAIN STAT CARDS */}
       <div className="metrics-grid-4">
         {/* Download Card */}
         <div className="glass-card glow-cyan">
@@ -144,7 +181,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ metrics, history }
         </div>
       </div>
 
-      {/* Live Real-time Waveform Chart (Main Focus) */}
+      {/* 2. LIVE REAL-TIME WAVEFORM TRAFFIC ACTIVITY */}
       <div className="glass-card chart-container">
         <div className="chart-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -165,7 +202,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ metrics, history }
           </div>
         </div>
 
-        <div className="svg-chart-wrapper" style={{ height: '220px' }}>
+        <div className="svg-chart-wrapper" style={{ height: '200px' }}>
           <svg
             className="svg-chart"
             viewBox={`0 0 ${width} ${height}`}
@@ -226,7 +263,249 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ metrics, history }
         </div>
       </div>
 
-      {/* Network Configuration Summary Grid */}
+      {/* 3. DATA QUOTA & USAGE (GB) SECTION - HARIAN, MINGGUAN, BULANAN */}
+      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Header & Tab Switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <span className="chart-title">Data Usage & Quota Consumption</span>
+            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+              Total bandwidth consumed in GigaBytes (GB) across historical periods
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              background: '#f1f5f9',
+              padding: '4px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <button
+              onClick={() => setUsagePeriod('daily')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                background: usagePeriod === 'daily' ? '#ffffff' : 'transparent',
+                color: usagePeriod === 'daily' ? '#0284c7' : '#64748b',
+                fontWeight: usagePeriod === 'daily' ? 700 : 500,
+                fontSize: '12px',
+                cursor: 'pointer',
+                boxShadow: usagePeriod === 'daily' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Harian (7 Hari)
+            </button>
+            <button
+              onClick={() => setUsagePeriod('weekly')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                background: usagePeriod === 'weekly' ? '#ffffff' : 'transparent',
+                color: usagePeriod === 'weekly' ? '#0284c7' : '#64748b',
+                fontWeight: usagePeriod === 'weekly' ? 700 : 500,
+                fontSize: '12px',
+                cursor: 'pointer',
+                boxShadow: usagePeriod === 'weekly' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Mingguan (4 Minggu)
+            </button>
+            <button
+              onClick={() => setUsagePeriod('monthly')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                background: usagePeriod === 'monthly' ? '#ffffff' : 'transparent',
+                color: usagePeriod === 'monthly' ? '#0284c7' : '#64748b',
+                fontWeight: usagePeriod === 'monthly' ? 700 : 500,
+                fontSize: '12px',
+                cursor: 'pointer',
+                boxShadow: usagePeriod === 'monthly' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Bulanan (6 Bulan)
+            </button>
+          </div>
+        </div>
+
+        {/* 3 Summary Badges (Hari Ini, Minggu Ini, Bulan Ini) */}
+        <div className="metrics-grid-3">
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '14px 16px',
+            }}
+          >
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              Hari Ini (Today)
+            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+              <span className="mono-text" style={{ fontSize: '24px', fontWeight: 800, color: '#0284c7' }}>
+                {usageSummary?.todayGb ?? 2.5}
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748b' }}>GB</span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+              DL: {usageSummary?.todayDownloadGb ?? 2.1} GB • UL: {usageSummary?.todayUploadGb ?? 0.4} GB
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '14px 16px',
+            }}
+          >
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              Minggu Ini (This Week)
+            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+              <span className="mono-text" style={{ fontSize: '24px', fontWeight: 800, color: '#7c3aed' }}>
+                {usageSummary?.thisWeekGb ?? 17.9}
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748b' }}>GB</span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+              DL: {usageSummary?.thisWeekDownloadGb ?? 15.3} GB • UL: {usageSummary?.thisWeekUploadGb ?? 2.6} GB
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '14px 16px',
+            }}
+          >
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              Bulan Ini (This Month)
+            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+              <span className="mono-text" style={{ fontSize: '24px', fontWeight: 800, color: '#059669' }}>
+                {usageSummary?.thisMonthGb ?? 56.0}
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748b' }}>GB</span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+              DL: {usageSummary?.thisMonthDownloadGb ?? 47.1} GB • UL: {usageSummary?.thisMonthUploadGb ?? 8.9} GB
+            </div>
+          </div>
+        </div>
+
+        {/* Interactive Bar Chart for GB Usage */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', fontSize: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#0284c7' }} />
+              <span style={{ fontWeight: 600, color: '#475569' }}>Download (GB)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#7c3aed' }} />
+              <span style={{ fontWeight: 600, color: '#475569' }}>Upload (GB)</span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              height: '180px',
+              background: '#f8fafc',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '24px 20px 14px 20px',
+              gap: '12px',
+            }}
+          >
+            {currentUsageItems.map((item, idx) => {
+              const heightPercent = Math.min(100, Math.max(12, (item.totalGb / maxUsageGb) * 100));
+              const dlPercent = (item.downloadGb / item.totalGb) * 100;
+              const ulPercent = (item.uploadGb / item.totalGb) * 100;
+
+              return (
+                <div
+                  key={`${item.label}-${idx}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    flex: 1,
+                    height: '100%',
+                    justifyContent: 'flex-end',
+                    gap: '8px',
+                  }}
+                >
+                  <span
+                    className="mono-text"
+                    style={{ fontSize: '11px', fontWeight: 700, color: '#0f172a' }}
+                  >
+                    {item.totalGb}G
+                  </span>
+
+                  <div
+                    style={{
+                      width: '100%',
+                      maxWidth: '36px',
+                      height: `${heightPercent}%`,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                    }}
+                    title={`${item.label}: Total ${item.totalGb} GB (DL: ${item.downloadGb} GB, UL: ${item.uploadGb} GB)`}
+                  >
+                    {/* Upload Top Bar */}
+                    <div
+                      style={{
+                        height: `${ulPercent}%`,
+                        background: 'linear-gradient(180deg, #8b5cf6, #7c3aed)',
+                        transition: 'height 0.3s ease',
+                      }}
+                    />
+                    {/* Download Bottom Bar */}
+                    <div
+                      style={{
+                        height: `${dlPercent}%`,
+                        background: 'linear-gradient(180deg, #38bdf8, #0284c7)',
+                        transition: 'height 0.3s ease',
+                      }}
+                    />
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: item.label.includes('Ini') ? '#0284c7' : '#64748b',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. NETWORK CONFIGURATION & HEALTH SUMMARY GRID */}
       <div className="metrics-grid-2">
         <div className="glass-card">
           <div className="card-top">

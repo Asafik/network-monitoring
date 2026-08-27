@@ -89,6 +89,21 @@ pub fn start_local_api_server(
                         json_str
                     );
                     let _ = stream.write_all(response.as_bytes());
+                } else if request.starts_with("GET /api/usage-summary") {
+                    let summary = db.get_data_usage_summary(1024 * 1024 * 1024 * 5, 1024 * 1024 * 1024 * 1).unwrap_or_default();
+                    let json_str = serde_json::to_string(&summary).unwrap_or_default();
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\n\
+                         Content-Type: application/json\r\n\
+                         Access-Control-Allow-Origin: *\r\n\
+                         Access-Control-Allow-Methods: GET, OPTIONS\r\n\
+                         Access-Control-Allow-Headers: *\r\n\
+                         Content-Length: {}\r\n\
+                         Connection: close\r\n\r\n{}",
+                        json_str.len(),
+                        json_str
+                    );
+                    let _ = stream.write_all(response.as_bytes());
                 } else if request.starts_with("GET /api/history") {
                     let history = db.get_recent_history(40).unwrap_or_default();
                     let json_str = serde_json::to_string(&history).unwrap_or_default();

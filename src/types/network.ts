@@ -1,3 +1,25 @@
+export interface UsageItem {
+  label: string;
+  downloadGb: number;
+  uploadGb: number;
+  totalGb: number;
+}
+
+export interface DataUsageSummary {
+  todayGb: number;
+  todayDownloadGb: number;
+  todayUploadGb: number;
+  thisWeekGb: number;
+  thisWeekDownloadGb: number;
+  thisWeekUploadGb: number;
+  thisMonthGb: number;
+  thisMonthDownloadGb: number;
+  thisMonthUploadGb: number;
+  daily: UsageItem[];
+  weekly: UsageItem[];
+  monthly: UsageItem[];
+}
+
 export interface WifiNetworkItem {
   ssid: string;
   signalPercent?: number | null;

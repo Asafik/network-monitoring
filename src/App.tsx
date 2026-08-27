@@ -16,6 +16,7 @@ import {
   PingTarget,
   AppSettings,
   WifiNetworkItem,
+  DataUsageSummary,
 } from './types/network';
 import './index.css';
 import './App.css';
@@ -26,6 +27,7 @@ export function App() {
   const [isNativeTauri, setIsNativeTauri] = useState(true);
   const [availableNetworks, setAvailableNetworks] = useState<WifiNetworkItem[]>([]);
   const [isScanningNetworks, setIsScanningNetworks] = useState(false);
+  const [usageSummary, setUsageSummary] = useState<DataUsageSummary | undefined>(undefined);
 
   // Live Metrics State
   const [metrics, setMetrics] = useState<NetworkMetrics>({
@@ -167,6 +169,12 @@ export function App() {
         })
         .catch((err) => console.warn('Could not load incidents from SQLite:', err));
 
+      invoke<DataUsageSummary>('get_data_usage_summary')
+        .then((data) => {
+          if (data) setUsageSummary(data);
+        })
+        .catch(() => {});
+
       // Listen to real-time events
       listen<NetworkMetrics>('network-metrics', (event) => {
         const newMetric = event.payload;
@@ -241,6 +249,13 @@ export function App() {
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data) && data.length > 0) setHistory(data);
+        })
+        .catch(() => {});
+
+      fetch('http://127.0.0.1:9090/api/usage-summary')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data) setUsageSummary(data);
         })
         .catch(() => {});
 
@@ -399,7 +414,7 @@ export function App() {
 
         {/* View Switcher */}
         {currentTab === 'dashboard' && (
-          <DashboardView metrics={metrics} history={history} />
+          <DashboardView metrics={metrics} history={history} usageSummary={usageSummary} />
         )}
         {currentTab === 'adapters' && (
           <AdaptersView

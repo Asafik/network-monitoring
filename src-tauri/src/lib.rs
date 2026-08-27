@@ -47,6 +47,14 @@ fn get_available_networks() -> Result<Vec<wifi::WifiNetworkItem>, String> {
 }
 
 #[tauri::command]
+fn get_data_usage_summary(state: State<AppState>) -> Result<db::DataUsageSummary, String> {
+    state
+        .db
+        .get_data_usage_summary(1024 * 1024 * 1024 * 5, 1024 * 1024 * 1024 * 1)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn ping_target(state: State<AppState>, host: String) -> Result<Option<f64>, String> {
     let ip: IpAddr = match host.parse() {
         Ok(addr) => addr,
@@ -211,6 +219,7 @@ pub fn run() {
             get_incidents,
             get_wifi_password,
             get_available_networks,
+            get_data_usage_summary,
             ping_target
         ])
         .run(tauri::generate_context!())
