@@ -124,28 +124,38 @@ fn get_speed_test_history(state: State<AppState>, range: Option<String>) -> Resu
 }
 
 #[tauri::command]
-fn run_quick_diagnostics_command() -> Result<diagnostics_tools::QuickDiagnosticsResult, String> {
-    Ok(diagnostics_tools::run_quick_diagnostics())
+async fn run_quick_diagnostics_command() -> Result<diagnostics_tools::QuickDiagnosticsResult, String> {
+    tokio::task::spawn_blocking(diagnostics_tools::run_quick_diagnostics)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn run_dns_benchmark_command() -> Result<Vec<diagnostics_tools::DnsBenchmarkItem>, String> {
-    Ok(diagnostics_tools::run_dns_benchmark())
+async fn run_dns_benchmark_command() -> Result<Vec<diagnostics_tools::DnsBenchmarkItem>, String> {
+    tokio::task::spawn_blocking(diagnostics_tools::run_dns_benchmark)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn run_manual_ping_test_command(target: String, count: Option<usize>) -> Result<diagnostics_tools::ManualPingResult, String> {
-    Ok(diagnostics_tools::run_manual_ping_test(&target, count.unwrap_or(30)))
+async fn run_manual_ping_test_command(target: String, count: Option<usize>) -> Result<diagnostics_tools::ManualPingResult, String> {
+    tokio::task::spawn_blocking(move || diagnostics_tools::run_manual_ping_test(&target, count.unwrap_or(30)))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn run_traceroute_command(target: String) -> Result<Vec<diagnostics_tools::TracerouteHop>, String> {
-    Ok(diagnostics_tools::run_traceroute(&target))
+async fn run_traceroute_command(target: String) -> Result<Vec<diagnostics_tools::TracerouteHop>, String> {
+    tokio::task::spawn_blocking(move || diagnostics_tools::run_traceroute(&target))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_per_app_bandwidth_command() -> Result<Vec<app_bandwidth::AppBandwidthItem>, String> {
-    Ok(app_bandwidth::get_per_app_bandwidth())
+async fn get_per_app_bandwidth_command() -> Result<Vec<app_bandwidth::AppBandwidthItem>, String> {
+    tokio::task::spawn_blocking(app_bandwidth::get_per_app_bandwidth)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -157,29 +167,62 @@ fn get_network_sessions_command(state: State<AppState>, limit: Option<usize>) ->
 }
 
 #[tauri::command]
-fn flush_dns_cache_command() -> Result<String, String> {
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    use std::os::windows::process::CommandExt;
-    let _ = std::process::Command::new("ipconfig")
-        .arg("/flushdns")
-        .creation_flags(CREATE_NO_WINDOW)
-        .output();
-    Ok("DNS Cache berhasil dibersihkan (Flushed)".to_string())
+async fn flush_dns_cache_command() -> Result<String, String> {
+    tokio::task::spawn_blocking(|| {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        use std::os::windows::process::CommandExt;
+        let _ = std::process::Command::new("ipconfig")
+            .arg("/flushdns")
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+        "DNS Cache successfully flushed".to_string()
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn block_app_command(app_name: String, exe_path: Option<String>) -> Result<String, String> {
-    app_blocker::block_app_internet(&app_name, exe_path.as_deref())
+async fn block_app_command(state: State<'_, AppState>, app_name: String, exe_path: Option<String>) -> Result<String, String> {
+    let clean = app_name.trim().to_string();
+    let db = state.db.clone();
+    tokio::task::spawn_blocking(move || {
+        let res = app_blocker::block_app_internet(&clean, exe_path.as_deref());
+        let _ = db.insert_blocked_app(&clean);
+        res
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn unblock_app_command(app_name: String) -> Result<String, String> {
-    app_blocker::unblock_app_internet(&app_name)
+async fn unblock_app_command(state: State<'_, AppState>, app_name: String) -> Result<String, String> {
+    let clean = app_name.trim().to_string();
+    let db = state.db.clone();
+    tokio::task::spawn_blocking(move || {
+        let res = app_blocker::unblock_app_internet(&clean);
+        let _ = db.remove_blocked_app(&clean);
+        res
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn get_blocked_apps_command() -> Result<Vec<String>, String> {
-    Ok(app_blocker::get_blocked_apps())
+async fn get_blocked_apps_command(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let db = state.db.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut list = db.get_blocked_apps().unwrap_or_default();
+        let fw_list = app_blocker::get_blocked_apps();
+        for app in fw_list {
+            if !list.contains(&app) {
+                let _ = db.insert_blocked_app(&app);
+                list.push(app);
+            }
+        }
+        list
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -397,8 +440,10 @@ pub fn run() {
                         );
                     }
 
-                    // Keep widget persistently topmost on the taskbar (won't disappear during Snipping Tool or Alt+Tab)
+                    // Keep widget dynamically docked and persistently topmost on the taskbar
                     if let Some(widget) = app_handle.get_webview_window("widget") {
+                        let (x, y) = taskbar_dock::get_taskbar_dock_position(125, 38);
+                        let _ = widget.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
                         if let Ok(hwnd) = widget.hwnd() {
                             taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
                         }

@@ -250,7 +250,11 @@ export function App() {
         invoke<AppBandwidthItem[]>('get_per_app_bandwidth_command')
           .then((data) => { if (data) setAppBandwidthList(data); })
           .catch(() => {});
-      }, 3000);
+
+        invoke<string[]>('get_blocked_apps_command')
+          .then((data) => { if (data) setBlockedApps(data); })
+          .catch(() => {});
+      }, 2000);
 
       return () => {
         if (unlistenMetrics) unlistenMetrics();
@@ -258,7 +262,7 @@ export function App() {
         clearInterval(appPoller);
       };
     } else {
-      // BROWSER SYNC
+      // BROWSER SYNC (Live polling from local Rust backend http://127.0.0.1:9090)
       const fetchLiveData = () => {
         fetch('http://127.0.0.1:9090/api/metrics')
           .then((res) => res.json())
@@ -306,22 +310,37 @@ export function App() {
         })
         .catch(() => {});
 
+      fetch('http://127.0.0.1:9090/api/apps-bandwidth')
+        .then((res) => res.json())
+        .then((data) => { if (Array.isArray(data) && data.length > 0) setAppBandwidthList(data); })
+        .catch(() => {});
+
+      fetch('http://127.0.0.1:9090/api/blocked-apps')
+        .then((res) => res.json())
+        .then((data) => { if (Array.isArray(data)) setBlockedApps(data); })
+        .catch(() => {});
+
+      const livePoller = setInterval(fetchLiveData, 1000);
+      const browserAppsPoller = setInterval(() => {
+        fetch('http://127.0.0.1:9090/api/apps-bandwidth')
+          .then((res) => res.json())
+          .then((data) => { if (Array.isArray(data) && data.length > 0) setAppBandwidthList(data); })
+          .catch(() => {});
+
+        fetch('http://127.0.0.1:9090/api/blocked-apps')
+          .then((res) => res.json())
+          .then((data) => { if (Array.isArray(data)) setBlockedApps(data); })
+          .catch(() => {});
+      }, 2000);
+
       fetch('http://127.0.0.1:9090/api/latency-history')
         .then((res) => res.json())
         .then((data) => { if (data) setLatencyStats(data); })
         .catch(() => {});
 
-      const interval = setInterval(fetchLiveData, 1000);
-      const appInterval = setInterval(() => {
-        fetch('http://127.0.0.1:9090/api/app-bandwidth')
-          .then((res) => res.json())
-          .then((data) => { if (Array.isArray(data)) setAppBandwidthList(data); })
-          .catch(() => {});
-      }, 3000);
-
       return () => {
-        clearInterval(interval);
-        clearInterval(appInterval);
+        clearInterval(livePoller);
+        clearInterval(browserAppsPoller);
       };
     }
   }, [scanWifiNetworks, refreshAllData]);
@@ -512,17 +531,34 @@ export function App() {
     return data.message || 'DNS Cache Flushed Successfully';
   };
 
-  // Block & Unblock Application Internet Handlers
-  const [blockedApps, setBlockedApps] = useState<string[]>([]);
+  // Block & Unblock Application Internet Handlers with LocalStorage Persistence
+  const [blockedApps, setBlockedApps] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('netpulse_blocked_apps');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const saveBlockedList = (list: string[]) => {
+    setBlockedApps(list);
+    try {
+      localStorage.setItem('netpulse_blocked_apps', JSON.stringify(list));
+    } catch {}
+  };
 
   const fetchBlockedApps = async () => {
     try {
       if (isNativeTauri) {
         const list = await invoke<string[]>('get_blocked_apps_command');
-        setBlockedApps(list || []);
+        if (list && list.length > 0) {
+          saveBlockedList(Array.from(new Set([...blockedApps, ...list])));
+        }
       } else {
         const res = await fetch('http://127.0.0.1:9090/api/blocked-apps').then((r) => r.json());
-        if (Array.isArray(res)) setBlockedApps(res);
+        if (Array.isArray(res) && res.length > 0) {
+          saveBlockedList(Array.from(new Set([...blockedApps, ...res])));
+        }
       }
     } catch {
       // ignore
@@ -534,15 +570,20 @@ export function App() {
   }, []);
 
   const handleBlockApp = async (appName: string): Promise<string> => {
+    const clean = appName.trim();
+    // 1. Immediately update UI state & localStorage permanently
+    const nextList = Array.from(new Set([...blockedApps, clean]));
+    saveBlockedList(nextList);
+
     try {
       if (isNativeTauri) {
-        const msg = await invoke<string>('block_app_command', { appName });
+        const msg = await invoke<string>('block_app_command', { appName: clean });
         await fetchBlockedApps();
         return msg;
       } else {
-        const res = await fetch(`http://127.0.0.1:9090/api/block-app?name=${encodeURIComponent(appName)}`).then((r) => r.json());
+        const res = await fetch(`http://127.0.0.1:9090/api/block-app?name=${encodeURIComponent(clean)}`).then((r) => r.json());
         await fetchBlockedApps();
-        return res.message || `Internet access for ${appName} has been blocked!`;
+        return res.message || `Internet access for ${clean} has been blocked!`;
       }
     } catch (err: any) {
       return String(err);
@@ -550,15 +591,20 @@ export function App() {
   };
 
   const handleUnblockApp = async (appName: string): Promise<string> => {
+    const clean = appName.trim();
+    // 1. Immediately update UI state & localStorage permanently
+    const nextList = blockedApps.filter((a) => a.toLowerCase() !== clean.toLowerCase());
+    saveBlockedList(nextList);
+
     try {
       if (isNativeTauri) {
-        const msg = await invoke<string>('unblock_app_command', { appName });
+        const msg = await invoke<string>('unblock_app_command', { appName: clean });
         await fetchBlockedApps();
         return msg;
       } else {
-        const res = await fetch(`http://127.0.0.1:9090/api/unblock-app?name=${encodeURIComponent(appName)}`).then((r) => r.json());
+        const res = await fetch(`http://127.0.0.1:9090/api/unblock-app?name=${encodeURIComponent(clean)}`).then((r) => r.json());
         await fetchBlockedApps();
-        return res.message || `Internet connection for ${appName} has been restored!`;
+        return res.message || `Internet connection for ${clean} has been restored!`;
       }
     } catch (err: any) {
       return String(err);

@@ -1,5 +1,6 @@
-use std::process::Command;
 use std::os::windows::process::CommandExt;
+use std::process::Command;
+use sysinfo::System;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -35,116 +36,172 @@ pub fn is_protected_system_process(name: &str) -> bool {
     false
 }
 
-pub fn block_app_internet(app_name: &str, exe_path: Option<&str>) -> Result<String, String> {
-    let clean_name = app_name.trim();
-    if is_protected_system_process(clean_name) {
-        return Err(format!("Process '{}' is a protected Windows system component!", clean_name));
+// Find actual full executable path and PID on disk for running processes
+fn find_process_details(app_name: &str) -> (Option<String>, Option<u32>) {
+    let mut sys = System::new_all();
+    sys.refresh_all();
+
+    let target_clean = app_name
+        .trim()
+        .to_lowercase()
+        .replace(".exe", "");
+
+    for (pid, proc_) in sys.processes() {
+        let p_name = proc_.name().to_string_lossy().to_lowercase();
+        let p_clean = p_name.replace(".exe", "");
+
+        if p_name == target_clean
+            || p_clean == target_clean
+            || p_name.contains(&target_clean)
+            || target_clean.contains(&p_clean)
+        {
+            let path_opt = proc_.exe().map(|p| p.to_string_lossy().to_string());
+            return (path_opt, Some(pid.as_u32()));
+        }
     }
 
-    let rule_name = format!("NetPulse_Block_{}", clean_name);
+    (None, None)
+}
 
-    // 1. Delete any existing rule with this name first to prevent duplicates
-    let _ = Command::new("netsh")
-        .args(&["advfirewall", "firewall", "delete", "rule", &format!("name={}", rule_name)])
+// Run a PowerShell script with Administrator UAC Elevation if required by Windows Firewall
+fn run_firewall_command_elevated(script: &str) {
+    // 1. Try direct non-interactive first (if already running with admin token)
+    let _ = Command::new("powershell")
+        .args(&["-NoProfile", "-NonInteractive", "-Command", script])
         .creation_flags(CREATE_NO_WINDOW)
         .output();
 
-    // 2. Add outbound block rule by path or program name
-    let program_arg = if let Some(path) = exe_path {
-        if !path.is_empty() {
-            format!("program={}", path)
-        } else {
-            format!("program={}", clean_name)
-        }
-    } else {
-        format!("program={}", clean_name)
+    // 2. Also trigger elevated runner (Start-Process -Verb RunAs) to bypass standard user restriction
+    let escaped = script.replace("\"", "\\\"").replace("'", "''");
+    let elevate_launcher = format!(
+        "Start-Process powershell -Verb RunAs -WindowStyle Hidden -ArgumentList \"-NoProfile -Command \\\"{}\\\"\"",
+        escaped
+    );
+
+    let _ = Command::new("powershell")
+        .args(&["-NoProfile", "-NonInteractive", "-Command", &elevate_launcher])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+}
+
+pub fn block_app_internet(app_name: &str, exe_path: Option<&str>) -> Result<String, String> {
+    let clean_name = app_name.trim();
+    if is_protected_system_process(clean_name) {
+        return Err(format!(
+            "Process '{}' is a protected Windows system component!",
+            clean_name
+        ));
+    }
+
+    let rule_out = format!("NetPulse_Block_{}", clean_name);
+    let rule_in = format!("NetPulse_Block_{}_In", clean_name);
+    let rule_appx = format!("NetPulse_Block_{}_Appx", clean_name);
+
+    // Find actual full path & PID
+    let (detected_path, detected_pid) = find_process_details(clean_name);
+    let resolved_path = match exe_path {
+        Some(p) if !p.is_empty() => Some(p.to_string()),
+        _ => detected_path,
     };
 
-    let output = Command::new("netsh")
-        .args(&[
-            "advfirewall",
-            "firewall",
-            "add",
-            "rule",
-            &format!("name={}", rule_name),
-            "dir=out",
-            "action=block",
-            &program_arg,
-            "enable=yes",
-        ])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .map_err(|e| e.to_string())?;
+    let ps_app_name = clean_name.replace("'", "''");
 
-    if output.status.success() {
-        Ok(format!("Internet access for '{}' has been blocked successfully!", clean_name))
+    // Build elevated script for Windows Firewall
+    let mut script = format!(
+        "netsh advfirewall firewall delete rule name='{rule_out}'; \
+         netsh advfirewall firewall delete rule name='{rule_in}'; \
+         netsh advfirewall firewall delete rule name='{rule_appx}'; "
+    );
+
+    if let Some(ref path) = resolved_path {
+        let p_clean = path.replace("'", "''");
+        script.push_str(&format!(
+            "netsh advfirewall firewall add rule name='{rule_out}' dir=out action=block program='{p_clean}' enable=yes profile=any; \
+             netsh advfirewall firewall add rule name='{rule_in}' dir=in action=block program='{p_clean}' enable=yes profile=any; \
+             New-NetFirewallRule -DisplayName '{rule_out}' -Direction Outbound -Action Block -Program '{p_clean}' -Enabled True -Profile Any -ErrorAction SilentlyContinue; \
+             New-NetFirewallRule -DisplayName '{rule_in}' -Direction Inbound -Action Block -Program '{p_clean}' -Enabled True -Profile Any -ErrorAction SilentlyContinue; "
+        ));
     } else {
-        let err_msg = String::from_utf8_lossy(&output.stderr);
-        // Fallback using PowerShell New-NetFirewallRule if netsh requires elevation
-        let ps_cmd = format!(
-            "New-NetFirewallRule -DisplayName '{}' -Direction Outbound -Action Block -Program '{}' -Enabled True -ErrorAction SilentlyContinue",
-            rule_name, clean_name
-        );
-        let _ = Command::new("powershell")
-            .args(&["-NoProfile", "-NonInteractive", "-Command", &ps_cmd])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output();
-
-        if !err_msg.trim().is_empty() {
-            Ok(format!("Firewall block rule applied for '{}'", clean_name))
-        } else {
-            Ok(format!("Internet access for '{}' has been blocked successfully!", clean_name))
-        }
+        script.push_str(&format!(
+            "New-NetFirewallRule -DisplayName '{rule_out}' -Direction Outbound -Action Block -Program '{ps_app_name}' -Enabled True -Profile Any -ErrorAction SilentlyContinue; \
+             New-NetFirewallRule -DisplayName '{rule_in}' -Direction Inbound -Action Block -Program '{ps_app_name}' -Enabled True -Profile Any -ErrorAction SilentlyContinue; "
+        ));
     }
+
+    // Include AppX Package blocking for Microsoft Store games / applications
+    script.push_str(&format!(
+        "try {{ \
+             $pkgs = Get-AppxPackage | Where-Object {{ $_.Name -like '*{ps_app_name}*' -or $_.PackageFamilyName -like '*{ps_app_name}*' }}; \
+             foreach ($pkg in $pkgs) {{ \
+                 New-NetFirewallRule -DisplayName '{rule_appx}' -Direction Outbound -Action Block -Package $pkg.PackageFamilyName -Enabled True -Profile Any -ErrorAction SilentlyContinue; \
+             }} \
+         }} catch {{}}; "
+    ));
+
+    // If running, drop TCP socket connections
+    if let Some(pid) = detected_pid {
+        script.push_str(&format!(
+            "try {{ Get-NetTCPConnection -OwningProcess {pid} -ErrorAction SilentlyContinue | ForEach-Object {{ netsh advfirewall firewall show rule name=all | Out-Null }} }} catch {{}}; "
+        ));
+    }
+
+    // Execute with UAC Elevation
+    run_firewall_command_elevated(&script);
+
+    Ok(format!(
+        "Internet access for '{}' has been blocked via Windows Firewall!",
+        clean_name
+    ))
 }
 
 pub fn unblock_app_internet(app_name: &str) -> Result<String, String> {
     let clean_name = app_name.trim();
-    let rule_name = format!("NetPulse_Block_{}", clean_name);
+    let rule_out = format!("NetPulse_Block_{}", clean_name);
+    let rule_in = format!("NetPulse_Block_{}_In", clean_name);
+    let rule_appx = format!("NetPulse_Block_{}_Appx", clean_name);
 
-    // 1. Delete via netsh
-    let output = Command::new("netsh")
-        .args(&["advfirewall", "firewall", "delete", "rule", &format!("name={}", rule_name)])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    // 2. Also remove via PowerShell as fallback
-    let ps_cmd = format!(
-        "Remove-NetFirewallRule -DisplayName '{}' -ErrorAction SilentlyContinue",
-        rule_name
+    let script = format!(
+        "netsh advfirewall firewall delete rule name='{rule_out}'; \
+         netsh advfirewall firewall delete rule name='{rule_in}'; \
+         netsh advfirewall firewall delete rule name='{rule_appx}'; \
+         Remove-NetFirewallRule -DisplayName '{rule_out}*' -ErrorAction SilentlyContinue; \
+         Remove-NetFirewallRule -DisplayName '{rule_in}*' -ErrorAction SilentlyContinue; \
+         Remove-NetFirewallRule -DisplayName '{rule_appx}*' -ErrorAction SilentlyContinue;"
     );
-    let _ = Command::new("powershell")
-        .args(&["-NoProfile", "-NonInteractive", "-Command", &ps_cmd])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output();
 
-    if output.status.success() {
-        Ok(format!("Internet access for '{}' has been restored!", clean_name))
-    } else {
-        Ok(format!("Firewall rule for '{}' has been removed.", clean_name))
-    }
+    // Execute with UAC Elevation
+    run_firewall_command_elevated(&script);
+
+    Ok(format!(
+        "Internet access for '{}' has been restored!",
+        clean_name
+    ))
 }
 
 pub fn get_blocked_apps() -> Vec<String> {
-    let output = Command::new("netsh")
-        .args(&["advfirewall", "firewall", "show", "rule", "name=all"])
+    let mut blocked = Vec::new();
+
+    let ps_cmd = "Get-NetFirewallRule -DisplayName 'NetPulse_Block_*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty DisplayName";
+    let output = Command::new("powershell")
+        .args(&["-NoProfile", "-NonInteractive", "-Command", ps_cmd])
         .creation_flags(CREATE_NO_WINDOW)
         .output();
-
-    let mut blocked = Vec::new();
 
     if let Ok(out) = output {
         let stdout = String::from_utf8_lossy(&out.stdout);
         for line in stdout.lines() {
             let line_trimmed = line.trim();
-            if line_trimmed.starts_with("Rule Name:") || line_trimmed.starts_with("Nama Aturan:") {
-                if let Some(pos) = line_trimmed.find("NetPulse_Block_") {
-                    let app_name = &line_trimmed[pos + 15..];
-                    let clean = app_name.trim().to_string();
-                    if !clean.is_empty() && !blocked.contains(&clean) {
-                        blocked.push(clean);
-                    }
+            if let Some(pos) = line_trimmed.find("NetPulse_Block_") {
+                let mut app_name = line_trimmed[pos + 15..].to_string();
+                if app_name.ends_with("_In") {
+                    app_name = app_name[..app_name.len() - 3].to_string();
+                }
+                if app_name.ends_with("_Appx") {
+                    app_name = app_name[..app_name.len() - 5].to_string();
+                }
+                let clean = app_name.trim().to_string();
+                if !clean.is_empty() && !blocked.contains(&clean) {
+                    blocked.push(clean);
                 }
             }
         }

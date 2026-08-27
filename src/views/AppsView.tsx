@@ -49,15 +49,18 @@ export const AppsView: React.FC<AppsViewProps> = ({
   onUnblockApp,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [customAppName, setCustomAppName] = useState('');
   const [activeCategory, setActiveCategory] = useState<'installed' | 'all' | 'blocked'>('installed');
   const [sortBy, setSortBy] = useState<'download' | 'upload' | 'total' | 'connections'>('download');
-  const [actionFeedback, setActionFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [loadingAppMap, setLoadingAppMap] = useState<{ [key: string]: boolean }>({});
+  const [actionFeedback, setActionFeedback] = useState<{ message: string; type: 'success' | 'error' | 'loading' } | null>(null);
 
   // Fallback rich realistic process list if appBandwidthList is initially empty
   const rawList: AppBandwidthItem[] = useMemo(() => {
     if (appBandwidthList.length > 0) return appBandwidthList;
     return [
       { pid: 14220, name: 'chrome.exe', downloadBps: 1850000, uploadBps: 120000, totalDownloadMb: 420.5, totalUploadMb: 38.2, activeConnections: 18 },
+      { pid: 6540, name: 'AngryBirds2.exe', downloadBps: 340000, uploadBps: 28000, totalDownloadMb: 128.0, totalUploadMb: 9.4, activeConnections: 4 },
       { pid: 8940, name: 'msedge.exe', downloadBps: 450000, uploadBps: 45000, totalDownloadMb: 154.2, totalUploadMb: 12.8, activeConnections: 8 },
       { pid: 11204, name: 'Discord.exe', downloadBps: 85000, uploadBps: 92000, totalDownloadMb: 88.4, totalUploadMb: 72.1, activeConnections: 6 },
       { pid: 4892, name: 'Steam.exe', downloadBps: 320000, uploadBps: 18000, totalDownloadMb: 650.0, totalUploadMb: 24.5, activeConnections: 4 },
@@ -77,7 +80,7 @@ export const AppsView: React.FC<AppsViewProps> = ({
     return blockedApps.some((b) => b.toLowerCase().includes(clean) || clean.includes(b.toLowerCase()));
   };
 
-  // Block handler
+  // Block handler with loading overlay
   const handleBlock = async (appName: string) => {
     const clean = getCleanName(appName);
     if (isSystemProcess(clean)) {
@@ -85,26 +88,61 @@ export const AppsView: React.FC<AppsViewProps> = ({
       setTimeout(() => setActionFeedback(null), 3000);
       return;
     }
-    if (onBlockApp) {
-      const msg = await onBlockApp(clean);
-      setActionFeedback({ message: msg || `Internet access for ${clean} blocked!`, type: 'success' });
+    setLoadingAppMap((prev) => ({ ...prev, [clean]: true }));
+    setActionFeedback({ message: `Applying Windows Firewall block rule for ${clean}...`, type: 'loading' });
+    try {
+      if (onBlockApp) {
+        const msg = await onBlockApp(clean);
+        setActionFeedback({ message: msg || `Internet access for ${clean} blocked!`, type: 'success' });
+      }
+    } catch {
+      setActionFeedback({ message: `Failed to block ${clean}`, type: 'error' });
+    } finally {
+      setLoadingAppMap((prev) => ({ ...prev, [clean]: false }));
       setTimeout(() => setActionFeedback(null), 3500);
     }
   };
 
-  // Unblock handler
+  // Unblock handler with loading overlay
   const handleUnblock = async (appName: string) => {
     const clean = getCleanName(appName);
-    if (onUnblockApp) {
-      const msg = await onUnblockApp(clean);
-      setActionFeedback({ message: msg || `Internet connection for ${clean} restored!`, type: 'success' });
+    setLoadingAppMap((prev) => ({ ...prev, [clean]: true }));
+    setActionFeedback({ message: `Removing Windows Firewall rule for ${clean}...`, type: 'loading' });
+    try {
+      if (onUnblockApp) {
+        const msg = await onUnblockApp(clean);
+        setActionFeedback({ message: msg || `Internet connection for ${clean} restored!`, type: 'success' });
+      }
+    } catch {
+      setActionFeedback({ message: `Failed to unblock ${clean}`, type: 'error' });
+    } finally {
+      setLoadingAppMap((prev) => ({ ...prev, [clean]: false }));
       setTimeout(() => setActionFeedback(null), 3500);
     }
   };
+
+  // Ensure any blocked application is always included in the list even if offline
+  const combinedList: AppBandwidthItem[] = useMemo(() => {
+    const list = [...rawList];
+    for (const blockedName of blockedApps) {
+      if (!list.some((a) => a.name.toLowerCase() === blockedName.toLowerCase())) {
+        list.unshift({
+          pid: 0,
+          name: blockedName,
+          downloadBps: 0,
+          uploadBps: 0,
+          totalDownloadMb: 0,
+          totalUploadMb: 0,
+          activeConnections: 0,
+        });
+      }
+    }
+    return list;
+  }, [rawList, blockedApps]);
 
   // Filtered & Sorted Apps
   const processedApps = useMemo(() => {
-    let list = rawList.filter((app) =>
+    let list = combinedList.filter((app) =>
       app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.pid.toString().includes(searchTerm)
     );
@@ -116,13 +154,19 @@ export const AppsView: React.FC<AppsViewProps> = ({
     }
 
     return list.sort((a, b) => {
+      // Prioritize blocked items at the top
+      const aBlocked = isAppBlocked(a.name);
+      const bBlocked = isAppBlocked(b.name);
+      if (aBlocked && !bBlocked) return -1;
+      if (!aBlocked && bBlocked) return 1;
+
       if (sortBy === 'download') return b.downloadBps - a.downloadBps;
       if (sortBy === 'upload') return b.uploadBps - a.uploadBps;
       if (sortBy === 'total') return (b.totalDownloadMb + b.totalUploadMb) - (a.totalDownloadMb + a.totalUploadMb);
       if (sortBy === 'connections') return b.activeConnections - a.activeConnections;
       return 0;
     });
-  }, [rawList, searchTerm, activeCategory, sortBy, blockedApps]);
+  }, [combinedList, searchTerm, activeCategory, sortBy, blockedApps]);
 
   // Overall Totals
   const totalDlBps = rawList.reduce((acc, a) => acc + a.downloadBps, 0);
@@ -146,7 +190,12 @@ export const AppsView: React.FC<AppsViewProps> = ({
             gap: '10px',
             padding: '12px 20px',
             borderRadius: '10px',
-            background: actionFeedback.type === 'success' ? '#059669' : '#dc2626',
+            background:
+              actionFeedback.type === 'success'
+                ? '#059669'
+                : actionFeedback.type === 'loading'
+                ? '#0284c7'
+                : '#dc2626',
             color: '#ffffff',
             fontWeight: 700,
             fontSize: '13px',
@@ -154,7 +203,13 @@ export const AppsView: React.FC<AppsViewProps> = ({
             animation: 'fadeIn 0.2s ease',
           }}
         >
-          <IconCheckCircle size={18} color="#ffffff" />
+          {actionFeedback.type === 'loading' ? (
+            <svg className="spin-anim" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
+              <circle cx="12" cy="12" r="9" strokeDasharray="36" strokeDashoffset="14" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <IconCheckCircle size={18} color="#ffffff" />
+          )}
           <span>{actionFeedback.message}</span>
         </div>
       )}
@@ -248,6 +303,67 @@ export const AppsView: React.FC<AppsViewProps> = ({
             <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
               Block or restore network connectivity for user applications instantly (Windows Firewall Kill Switch)
             </p>
+          </div>
+
+          {/* Quick Manual Kill Switch Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(220, 38, 38, 0.2)' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#dc2626' }}>🎯 Quick Block:</span>
+            <input
+              type="text"
+              value={customAppName}
+              onChange={(e) => setCustomAppName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && customAppName.trim()) {
+                  handleBlock(customAppName.trim());
+                  setCustomAppName('');
+                }
+              }}
+              placeholder="e.g. AngryBirds2.exe, Game.exe"
+              style={{
+                background: '#ffffff',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                padding: '5px 10px',
+                fontSize: '12px',
+                color: '#0f172a',
+                outline: 'none',
+                width: '180px',
+              }}
+            />
+            <button
+              onClick={() => {
+                if (customAppName.trim() && !loadingAppMap[getCleanName(customAppName)]) {
+                  handleBlock(customAppName.trim());
+                  setCustomAppName('');
+                }
+              }}
+              disabled={!customAppName.trim() || loadingAppMap[getCleanName(customAppName)]}
+              style={{
+                background: !customAppName.trim() ? '#cbd5e1' : loadingAppMap[getCleanName(customAppName)] ? '#f87171' : '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: customAppName.trim() && !loadingAppMap[getCleanName(customAppName)] ? 'pointer' : 'not-allowed',
+                transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {loadingAppMap[getCleanName(customAppName)] ? (
+                <>
+                  <svg className="spin-anim" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
+                    <circle cx="12" cy="12" r="9" strokeDasharray="36" strokeDashoffset="14" strokeLinecap="round" />
+                  </svg>
+                  <span>Blocking...</span>
+                </>
+              ) : (
+                <span>⛔ Block Now</span>
+              )}
+            </button>
           </div>
 
           {/* Search Input & Category Filters */}
@@ -461,47 +577,77 @@ export const AppsView: React.FC<AppsViewProps> = ({
                             </span>
                             <button
                               onClick={() => handleUnblock(app.name)}
+                              disabled={loadingAppMap[getCleanName(app.name)]}
                               style={{
-                                background: '#059669',
+                                background: loadingAppMap[getCleanName(app.name)] ? '#6ee7b7' : '#059669',
                                 color: '#ffffff',
                                 border: 'none',
                                 borderRadius: '6px',
                                 padding: '6px 14px',
                                 fontSize: '11px',
                                 fontWeight: 700,
-                                cursor: 'pointer',
+                                cursor: loadingAppMap[getCleanName(app.name)] ? 'wait' : 'pointer',
                                 boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
                                 transition: 'all 0.15s ease',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
                               }}
                             >
-                              Restore Access
+                              {loadingAppMap[getCleanName(app.name)] ? (
+                                <>
+                                  <svg className="spin-anim" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
+                                    <circle cx="12" cy="12" r="9" strokeDasharray="36" strokeDashoffset="14" strokeLinecap="round" />
+                                  </svg>
+                                  <span>Restoring...</span>
+                                </>
+                              ) : (
+                                <span>Restore Access</span>
+                              )}
                             </button>
                           </div>
                         ) : (
                           <button
                             onClick={() => handleBlock(app.name)}
+                            disabled={loadingAppMap[getCleanName(app.name)]}
                             style={{
-                              background: '#ffffff',
+                              background: loadingAppMap[getCleanName(app.name)] ? '#fee2e2' : '#ffffff',
                               color: '#dc2626',
                               border: '1px solid rgba(220, 38, 38, 0.35)',
                               borderRadius: '6px',
                               padding: '6px 14px',
                               fontSize: '11px',
                               fontWeight: 700,
-                              cursor: 'pointer',
+                              cursor: loadingAppMap[getCleanName(app.name)] ? 'wait' : 'pointer',
                               transition: 'all 0.15s ease',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = '#dc2626';
-                              e.currentTarget.style.color = '#ffffff';
+                              if (!loadingAppMap[getCleanName(app.name)]) {
+                                e.currentTarget.style.background = '#dc2626';
+                                e.currentTarget.style.color = '#ffffff';
+                              }
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.background = '#ffffff';
-                              e.currentTarget.style.color = '#dc2626';
+                              if (!loadingAppMap[getCleanName(app.name)]) {
+                                e.currentTarget.style.background = '#ffffff';
+                                e.currentTarget.style.color = '#dc2626';
+                              }
                             }}
                             title="Block all internet and outbound traffic for this application (Windows Firewall)"
                           >
-                            Block Internet
+                            {loadingAppMap[getCleanName(app.name)] ? (
+                              <>
+                                <svg className="spin-anim" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="3">
+                                  <circle cx="12" cy="12" r="9" strokeDasharray="36" strokeDashoffset="14" strokeLinecap="round" />
+                                </svg>
+                                <span>Blocking...</span>
+                              </>
+                            ) : (
+                              <span>Block Internet</span>
+                            )}
                           </button>
                         )}
                       </td>

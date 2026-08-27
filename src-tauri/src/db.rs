@@ -229,6 +229,11 @@ impl Database {
                 date_str TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS blocked_apps (
+                name TEXT PRIMARY KEY,
+                blocked_at INTEGER NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics_history(timestamp);
             ",
         )?;
@@ -663,5 +668,37 @@ impl Database {
             weekly,
             monthly,
         })
+    }
+
+    pub fn insert_blocked_app(&self, name: &str) -> Result<()> {
+        let conn = self.get_conn()?;
+        let now = chrono::Local::now().timestamp();
+        conn.execute(
+            "INSERT OR REPLACE INTO blocked_apps (name, blocked_at) VALUES (?1, ?2)",
+            params![name, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn remove_blocked_app(&self, name: &str) -> Result<()> {
+        let conn = self.get_conn()?;
+        conn.execute(
+            "DELETE FROM blocked_apps WHERE name = ?1",
+            params![name],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_blocked_apps(&self) -> Result<Vec<String>> {
+        let conn = self.get_conn()?;
+        let mut stmt = conn.prepare("SELECT name FROM blocked_apps ORDER BY blocked_at DESC")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut list = Vec::new();
+        for r in rows {
+            if let Ok(name) = r {
+                list.push(name);
+            }
+        }
+        Ok(list)
     }
 }

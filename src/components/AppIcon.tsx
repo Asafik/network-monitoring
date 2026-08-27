@@ -22,7 +22,23 @@ export const AppIcon: React.FC<AppIconProps> = ({ name, size = 28 }) => {
     );
   }
 
-  // 2. Microsoft Edge
+  // 2. Angry Birds / Rovio Game
+  if (lower.includes('angry') || lower.includes('bird') || lower.includes('rovio')) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
+        <rect width="48" height="48" rx="10" fill="#DC2626" />
+        <circle cx="24" cy="24" r="14" fill="#EF4444" />
+        <circle cx="19" cy="20" r="4" fill="#FFFFFF" />
+        <circle cx="29" cy="20" r="4" fill="#FFFFFF" />
+        <circle cx="20" cy="20" r="2" fill="#000000" />
+        <circle cx="28" cy="20" r="2" fill="#000000" />
+        <polygon points="24,23 19,28 29,28" fill="#F59E0B" />
+        <path d="M15 16 L21 18 M33 16 L27 18" stroke="#000000" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  // 3. Microsoft Edge
   if (lower.includes('msedge') || lower.includes('edge')) {
     return (
       <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '6px' }}>
@@ -42,7 +58,7 @@ export const AppIcon: React.FC<AppIconProps> = ({ name, size = 28 }) => {
     );
   }
 
-  // 3. Discord
+  // 4. Discord
   if (lower.includes('discord')) {
     return (
       <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
@@ -55,7 +71,7 @@ export const AppIcon: React.FC<AppIconProps> = ({ name, size = 28 }) => {
     );
   }
 
-  // 4. Steam
+  // 5. Steam
   if (lower.includes('steam')) {
     return (
       <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
@@ -69,7 +85,7 @@ export const AppIcon: React.FC<AppIconProps> = ({ name, size = 28 }) => {
     );
   }
 
-  // 5. Spotify
+  // 6. Spotify
   if (lower.includes('spotify')) {
     return (
       <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
@@ -82,7 +98,7 @@ export const AppIcon: React.FC<AppIconProps> = ({ name, size = 28 }) => {
     );
   }
 
-  // 6. Visual Studio Code
+  // 7. Visual Studio Code
   if (lower.includes('code') || lower.includes('vscode')) {
     return (
       <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
@@ -94,42 +110,17 @@ export const AppIcon: React.FC<AppIconProps> = ({ name, size = 28 }) => {
     );
   }
 
-  // 7. System / NT Kernel / Windows
-  if (lower.includes('system') || lower.includes('ntoskrnl') || lower.includes('svchost') || lower.includes('services')) {
-    return (
-      <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
-        <rect width="48" height="48" rx="10" fill="#0078D7" />
-        <path d="M11 12 L22 10.5 L22 22 L11 22 Z" fill="#FFFFFF" />
-        <path d="M24 10.2 L37 8.5 L37 22 L24 22 Z" fill="#FFFFFF" />
-        <path d="M11 24 L22 24 L22 35.5 L11 34 Z" fill="#FFFFFF" />
-        <path d="M24 24 L37 24 L37 37.5 L24 35.8 Z" fill="#FFFFFF" />
-      </svg>
-    );
-  }
-
-  // 8. Telegram
-  if (lower.includes('telegram')) {
-    return (
-      <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
-        <rect width="48" height="48" rx="10" fill="#2AABEE" />
-        <path d="M11 23 L36 13 L31 35 L22 28 L17 31 L18 24 L29 17 L16 23 Z" fill="#FFFFFF" />
-      </svg>
-    );
-  }
-
-  // 9. WhatsApp
-  if (lower.includes('whatsapp')) {
-    return (
-      <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
-        <rect width="48" height="48" rx="10" fill="#25D366" />
-        <path d="M24 10 C16.3 10 10 16.3 10 24 C10 26.8 10.8 29.4 12.3 31.6 L11 37 L16.6 35.6 C18.8 37 21.3 38 24 38 C31.7 38 38 31.7 38 24 C38 16.3 31.7 10 24 10 Z" fill="#FFFFFF" />
-        <path d="M20 18 C19.5 17 18.7 17 18 17 C17.3 17 16.5 17.5 16.5 19 C16.5 20.5 18 23.5 20.5 26 C23 28.5 26 30 27.5 30 C29 30 29.5 29.2 29.5 28.5 C29.5 27.8 29.5 27 28.5 26.5 C27.5 26 26.5 25.5 26 26 C25.5 26.5 25 27 24.5 27 C24 27 22.5 26 21 24.5 C19.5 23 18.5 21.5 18.5 21 C18.5 20.5 19 20 19.5 19.5 C20 19 20.5 18.5 20 18 Z" fill="#25D366" />
-      </svg>
-    );
-  }
-
-  // 10. Games (eFootball, Steam Game, Valorant, Riot, Epic, etc.)
-  if (lower.includes('football') || lower.includes('game') || lower.includes('valorant') || lower.includes('riot') || lower.includes('epic') || lower.includes('cs2') || lower.includes('gta')) {
+  // 8. Games (eFootball, Roblox, Valorant, Riot, Epic, etc.)
+  if (
+    lower.includes('football') ||
+    lower.includes('game') ||
+    lower.includes('valorant') ||
+    lower.includes('riot') ||
+    lower.includes('epic') ||
+    lower.includes('roblox') ||
+    lower.includes('cs2') ||
+    lower.includes('gta')
+  ) {
     return (
       <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
         <rect width="48" height="48" rx="10" fill="#7C3AED" />
@@ -142,28 +133,7 @@ export const AppIcon: React.FC<AppIconProps> = ({ name, size = 28 }) => {
     );
   }
 
-  // 11. Torrent / Downloader (qBittorrent, IDM, uTorrent)
-  if (lower.includes('torrent') || lower.includes('idm') || lower.includes('download')) {
-    return (
-      <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
-        <rect width="48" height="48" rx="10" fill="#0284C7" />
-        <path d="M24 12 L24 28 M16 22 L24 30 L32 22 M14 34 L34 34" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      </svg>
-    );
-  }
-
-  // 12. Node.js / Runtime
-  if (lower.includes('node') || lower.includes('python') || lower.includes('java')) {
-    return (
-      <svg width={size} height={size} viewBox="0 0 48 48" style={{ flexShrink: 0, borderRadius: '8px' }}>
-        <rect width="48" height="48" rx="10" fill="#339933" />
-        <path d="M24 12 L34 18 L34 30 L24 36 L14 30 L14 18 Z" stroke="#FFFFFF" strokeWidth="3" fill="none" strokeLinejoin="round" />
-        <circle cx="24" cy="24" r="4" fill="#FFFFFF" />
-      </svg>
-    );
-  }
-
-  // 13. Default / Generic Executable: Clean Gradient Initials Badge
+  // 9. Default / Generic Executable: Clean Gradient Initials Badge
   const initial = name.replace(/\.exe$/i, '').charAt(0).toUpperCase() || 'A';
   const charCode = name.charCodeAt(0) || 65;
   const palettes = [

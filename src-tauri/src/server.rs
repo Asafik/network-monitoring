@@ -140,6 +140,119 @@ pub fn start_local_api_server(
                         json_str
                     );
                     let _ = stream.write_all(response.as_bytes());
+                } else if request.starts_with("GET /api/blocked-apps") {
+                    let mut list = db.get_blocked_apps().unwrap_or_default();
+                    let fw_list = crate::app_blocker::get_blocked_apps();
+                    for app in fw_list {
+                        if !list.contains(&app) {
+                            let _ = db.insert_blocked_app(&app);
+                            list.push(app);
+                        }
+                    }
+                    let json_str = serde_json::to_string(&list).unwrap_or_default();
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\n\
+                         Content-Type: application/json\r\n\
+                         Access-Control-Allow-Origin: *\r\n\
+                         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
+                         Access-Control-Allow-Headers: *\r\n\
+                         Content-Length: {}\r\n\
+                         Connection: close\r\n\r\n{}",
+                        json_str.len(),
+                        json_str
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                } else if request.starts_with("POST /api/block-app") || request.starts_with("GET /api/block-app") {
+                    let mut app_name = String::new();
+                    if let Some(pos) = request.find("name=") {
+                        let query = &request[pos + 5..];
+                        let end = query.find('&').or_else(|| query.find(' ')).unwrap_or(query.len());
+                        app_name = query[..end].replace("%20", " ").replace("+", " ");
+                    } else if let Some(pos) = request.find("appName=") {
+                        let query = &request[pos + 8..];
+                        let end = query.find('&').or_else(|| query.find(' ')).unwrap_or(query.len());
+                        app_name = query[..end].replace("%20", " ").replace("+", " ");
+                    } else if let Some(body_start) = request.find("\r\n\r\n") {
+                        let body = &request[body_start + 4..];
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(body) {
+                            if let Some(n) = val.get("name").or_else(|| val.get("appName")).and_then(|v| v.as_str()) {
+                                app_name = n.to_string();
+                            }
+                        }
+                    }
+                    let res = if !app_name.is_empty() {
+                        let clean = app_name.trim().to_string();
+                        let _ = db.insert_blocked_app(&clean);
+                        crate::app_blocker::block_app_internet(&clean, None).unwrap_or_else(|e| e)
+                    } else {
+                        "App name is required".to_string()
+                    };
+                    let json_str = serde_json::json!({ "message": res }).to_string();
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\n\
+                         Content-Type: application/json\r\n\
+                         Access-Control-Allow-Origin: *\r\n\
+                         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
+                         Access-Control-Allow-Headers: *\r\n\
+                         Content-Length: {}\r\n\
+                         Connection: close\r\n\r\n{}",
+                        json_str.len(),
+                        json_str
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                } else if request.starts_with("POST /api/unblock-app") || request.starts_with("GET /api/unblock-app") {
+                    let mut app_name = String::new();
+                    if let Some(pos) = request.find("name=") {
+                        let query = &request[pos + 5..];
+                        let end = query.find('&').or_else(|| query.find(' ')).unwrap_or(query.len());
+                        app_name = query[..end].replace("%20", " ").replace("+", " ");
+                    } else if let Some(pos) = request.find("appName=") {
+                        let query = &request[pos + 8..];
+                        let end = query.find('&').or_else(|| query.find(' ')).unwrap_or(query.len());
+                        app_name = query[..end].replace("%20", " ").replace("+", " ");
+                    } else if let Some(body_start) = request.find("\r\n\r\n") {
+                        let body = &request[body_start + 4..];
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(body) {
+                            if let Some(n) = val.get("name").or_else(|| val.get("appName")).and_then(|v| v.as_str()) {
+                                app_name = n.to_string();
+                            }
+                        }
+                    }
+                    let res = if !app_name.is_empty() {
+                        let clean = app_name.trim().to_string();
+                        let _ = db.remove_blocked_app(&clean);
+                        crate::app_blocker::unblock_app_internet(&clean).unwrap_or_else(|e| e)
+                    } else {
+                        "App name is required".to_string()
+                    };
+                    let json_str = serde_json::json!({ "message": res }).to_string();
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\n\
+                         Content-Type: application/json\r\n\
+                         Access-Control-Allow-Origin: *\r\n\
+                         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
+                         Access-Control-Allow-Headers: *\r\n\
+                         Content-Length: {}\r\n\
+                         Connection: close\r\n\r\n{}",
+                        json_str.len(),
+                        json_str
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                } else if request.starts_with("GET /api/apps-bandwidth") {
+                    let apps = crate::app_bandwidth::get_per_app_bandwidth();
+                    let json_str = serde_json::to_string(&apps).unwrap_or_default();
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\n\
+                         Content-Type: application/json\r\n\
+                         Access-Control-Allow-Origin: *\r\n\
+                         Access-Control-Allow-Methods: GET, OPTIONS\r\n\
+                         Access-Control-Allow-Headers: *\r\n\
+                         Content-Length: {}\r\n\
+                         Connection: close\r\n\r\n{}",
+                        json_str.len(),
+                        json_str
+                    );
+                    let _ = stream.write_all(response.as_bytes());
                 } else if request.starts_with("GET /api/run-speedtest-download") || request.starts_with("GET /api/run-speedtest?mode=download") {
                     let db_clone = db.clone();
                     let rt = tokio::runtime::Builder::new_current_thread()

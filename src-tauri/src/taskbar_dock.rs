@@ -14,7 +14,7 @@ const WS_EX_NOACTIVATE: isize = 0x08000000;
 const HWND_TOPMOST: isize = -1;
 const SWP_NOMOVE: u32 = 0x0002;
 const SWP_NOSIZE: u32 = 0x0001;
-const SWP_NOACTIVATE: u32 = 0x0010;
+const SWP_NOACTIVATE: u32 = 0x0810;
 const SWP_SHOWWINDOW: u32 = 0x0040;
 
 #[link(name = "user32")]
@@ -85,11 +85,6 @@ pub fn get_taskbar_dock_position(widget_width: i32, widget_height: i32) -> (i32,
             GetWindowRect(tray_hwnd, &mut taskbar_rect);
 
             let taskbar_h = (taskbar_rect.bottom - taskbar_rect.top).max(40);
-            let _taskbar_w = if taskbar_rect.right > taskbar_rect.left {
-                taskbar_rect.right - taskbar_rect.left
-            } else {
-                screen_w
-            };
 
             // Calculate vertical center on the taskbar
             let y = taskbar_rect.top + (taskbar_h - widget_height) / 2;
@@ -102,19 +97,19 @@ pub fn get_taskbar_dock_position(widget_width: i32, widget_height: i32) -> (i32,
 
                 // Ensure notify_rect.left is valid and not zero/offscreen
                 if notify_rect.left > 300 && notify_rect.left < taskbar_rect.right {
-                    let x = notify_rect.left - widget_width - 8;
+                    let x = notify_rect.left - widget_width - 24;
                     return (x, y);
                 }
             }
 
-            // Windows 11 XAML taskbar: Tray area is on the right (~270px wide with clock, battery, sound, wifi, ^)
-            // Position widget right to the left of the ^ chevron icon
-            let x = (taskbar_rect.right - 280 - widget_width).max(50);
+            // Windows 11 XAML taskbar: System tray with Clock + Quick Settings + Location/Mic/Apps + Chevron is ~280-360px wide.
+            // Position widget comfortably to the left with dynamic 410px clearance so it never overlaps dynamic tray icons (Location, Microphone, Update, Chevron).
+            let x = (taskbar_rect.right - 410 - widget_width).max(50);
             return (x, y);
         }
 
         // Fallback for primary screen metrics
-        let x = (screen_w - 280 - widget_width).max(50);
+        let x = (screen_w - 410 - widget_width).max(50);
         let y = (screen_h - 44).max(0);
         (x, y)
     }
