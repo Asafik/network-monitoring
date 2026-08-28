@@ -23,9 +23,19 @@ pub fn start_local_api_server(
 
         for stream in listener.incoming() {
             if let Ok(mut stream) = stream {
-                let mut buffer = [0; 2048];
-                let _ = stream.read(&mut buffer);
-                let request = String::from_utf8_lossy(&buffer);
+                let latest_metrics = latest_metrics.clone();
+                let latest_adapters = latest_adapters.clone();
+                let db = db.clone();
+
+                thread::spawn(move || {
+                    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(4)));
+                    let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(4)));
+                    let mut buffer = [0; 4096];
+                    let bytes_read = stream.read(&mut buffer).unwrap_or(0);
+                    if bytes_read == 0 {
+                        return;
+                    }
+                    let request = String::from_utf8_lossy(&buffer[..bytes_read]);
 
                 if request.starts_with("GET /api/metrics") {
                     let metrics = latest_metrics.lock().unwrap().clone();
@@ -603,6 +613,7 @@ pub fn start_local_api_server(
                         json_str
                     );
                     let _ = stream.write_all(response.as_bytes());
+                    let _ = stream.flush();
                 } else if request.starts_with("GET /") && !request.starts_with("GET /api/") {
                     // Extract requested path and serve web frontend
                     let first_line = request.lines().next().unwrap_or("");
@@ -616,24 +627,53 @@ pub fn start_local_api_server(
                         clean_path.trim_start_matches('/')
                     };
 
-                    let dist_base = std::path::PathBuf::from("dist");
-                    let mut file_path = dist_base.join(target_rel);
-                    if !file_path.exists() {
-                        file_path = std::path::PathBuf::from(r"F:\network-monitor\dist").join(target_rel);
+                    let clean_target = target_rel.replace('/', "\\");
+
+                    // Search for file in known locations
+                    let mut found_path: Option<std::path::PathBuf> = None;
+
+                    let candidates = [
+                        std::path::PathBuf::from("dist").join(&clean_target),
+                        std::path::PathBuf::from(r"F:\network-monitor\dist").join(&clean_target),
+                    ];
+
+                    for candidate in candidates {
+                        if candidate.is_file() {
+                            found_path = Some(candidate);
+                            break;
+                        }
                     }
 
-                    if file_path.exists() && file_path.is_file() {
-                        if let Ok(bytes) = std::fs::read(&file_path) {
-                            let content_type = if target_rel.ends_with(".html") {
+                    if found_path.is_none() {
+                        if let Ok(exe) = std::env::current_exe() {
+                            if let Some(parent) = exe.parent() {
+                                let p = parent.join("dist").join(&clean_target);
+                                if p.is_file() {
+                                    found_path = Some(p);
+                                } else if let Some(gp) = parent.parent().and_then(|p| p.parent()) {
+                                    let gp_p = gp.join("dist").join(&clean_target);
+                                    if gp_p.is_file() {
+                                        found_path = Some(gp_p);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if let Some(path) = found_path {
+                        if let Ok(bytes) = std::fs::read(&path) {
+                            let content_type = if clean_target.ends_with(".html") {
                                 "text/html; charset=utf-8"
-                            } else if target_rel.ends_with(".js") {
+                            } else if clean_target.ends_with(".js") {
                                 "text/javascript; charset=utf-8"
-                            } else if target_rel.ends_with(".css") {
+                            } else if clean_target.ends_with(".css") {
                                 "text/css; charset=utf-8"
-                            } else if target_rel.ends_with(".svg") {
+                            } else if clean_target.ends_with(".svg") {
                                 "image/svg+xml"
-                            } else if target_rel.ends_with(".png") {
+                            } else if clean_target.ends_with(".png") {
                                 "image/png"
+                            } else if clean_target.ends_with(".ico") {
+                                "image/x-icon"
                             } else {
                                 "application/octet-stream"
                             };
@@ -649,11 +689,12 @@ pub fn start_local_api_server(
                             );
                             let _ = stream.write_all(header.as_bytes());
                             let _ = stream.write_all(&bytes);
+                            let _ = stream.flush();
                         }
                     } else {
                         // SPA Fallback: serve index.html
                         let mut index_path = std::path::PathBuf::from("dist").join("index.html");
-                        if !index_path.exists() {
+                        if !index_path.is_file() {
                             index_path = std::path::PathBuf::from(r"F:\network-monitor\dist\index.html");
                         }
                         if let Ok(bytes) = std::fs::read(&index_path) {
@@ -667,6 +708,7 @@ pub fn start_local_api_server(
                             );
                             let _ = stream.write_all(header.as_bytes());
                             let _ = stream.write_all(&bytes);
+                            let _ = stream.flush();
                         }
                     }
                 } else if request.starts_with("OPTIONS") {
@@ -677,7 +719,9 @@ pub fn start_local_api_server(
                          Content-Length: 0\r\n\
                          Connection: close\r\n\r\n";
                     let _ = stream.write_all(response.as_bytes());
+                    let _ = stream.flush();
                 }
+                });
             }
         }
     });
