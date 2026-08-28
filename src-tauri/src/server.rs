@@ -603,6 +603,72 @@ pub fn start_local_api_server(
                         json_str
                     );
                     let _ = stream.write_all(response.as_bytes());
+                } else if request.starts_with("GET /") && !request.starts_with("GET /api/") {
+                    // Extract requested path and serve web frontend
+                    let first_line = request.lines().next().unwrap_or("");
+                    let parts: Vec<&str> = first_line.split_whitespace().collect();
+                    let raw_path = if parts.len() >= 2 { parts[1] } else { "/" };
+                    let clean_path = raw_path.split('?').next().unwrap_or("/");
+
+                    let target_rel = if clean_path == "/" || clean_path.is_empty() {
+                        "index.html"
+                    } else {
+                        clean_path.trim_start_matches('/')
+                    };
+
+                    let dist_base = std::path::PathBuf::from("dist");
+                    let mut file_path = dist_base.join(target_rel);
+                    if !file_path.exists() {
+                        file_path = std::path::PathBuf::from(r"F:\network-monitor\dist").join(target_rel);
+                    }
+
+                    if file_path.exists() && file_path.is_file() {
+                        if let Ok(bytes) = std::fs::read(&file_path) {
+                            let content_type = if target_rel.ends_with(".html") {
+                                "text/html; charset=utf-8"
+                            } else if target_rel.ends_with(".js") {
+                                "text/javascript; charset=utf-8"
+                            } else if target_rel.ends_with(".css") {
+                                "text/css; charset=utf-8"
+                            } else if target_rel.ends_with(".svg") {
+                                "image/svg+xml"
+                            } else if target_rel.ends_with(".png") {
+                                "image/png"
+                            } else {
+                                "application/octet-stream"
+                            };
+
+                            let header = format!(
+                                "HTTP/1.1 200 OK\r\n\
+                                 Content-Type: {}\r\n\
+                                 Access-Control-Allow-Origin: *\r\n\
+                                 Content-Length: {}\r\n\
+                                 Connection: close\r\n\r\n",
+                                content_type,
+                                bytes.len()
+                            );
+                            let _ = stream.write_all(header.as_bytes());
+                            let _ = stream.write_all(&bytes);
+                        }
+                    } else {
+                        // SPA Fallback: serve index.html
+                        let mut index_path = std::path::PathBuf::from("dist").join("index.html");
+                        if !index_path.exists() {
+                            index_path = std::path::PathBuf::from(r"F:\network-monitor\dist\index.html");
+                        }
+                        if let Ok(bytes) = std::fs::read(&index_path) {
+                            let header = format!(
+                                "HTTP/1.1 200 OK\r\n\
+                                 Content-Type: text/html; charset=utf-8\r\n\
+                                 Access-Control-Allow-Origin: *\r\n\
+                                 Content-Length: {}\r\n\
+                                 Connection: close\r\n\r\n",
+                                bytes.len()
+                            );
+                            let _ = stream.write_all(header.as_bytes());
+                            let _ = stream.write_all(&bytes);
+                        }
+                    }
                 } else if request.starts_with("OPTIONS") {
                     let response = "HTTP/1.1 204 No Content\r\n\
                          Access-Control-Allow-Origin: *\r\n\
