@@ -9,6 +9,7 @@ import { AppsView } from './views/AppsView';
 import { AdaptersView } from './views/AdaptersView';
 import { HistoryView } from './views/HistoryView';
 import { SettingsView } from './views/SettingsView';
+import { StartupScannerOverlay } from './components/StartupScannerOverlay';
 import { IconRefresh, IconActivity } from './components/Icons';
 import {
   NetworkMetrics,
@@ -46,6 +47,7 @@ export function App() {
   const [speedTests, setSpeedTests] = useState<SpeedTestResult[]>([]);
   const [sessions, setSessions] = useState<NetworkSessionRecord[]>([]);
   const [appBandwidthList, setAppBandwidthList] = useState<AppBandwidthItem[]>([]);
+  const [showScannerOverlay, setShowScannerOverlay] = useState(true);
 
   // Live Metrics State
   const [metrics, setMetrics] = useState<NetworkMetrics>({
@@ -698,6 +700,14 @@ export function App() {
 
   return (
     <div className="app-container">
+      {/* Startup Device Scanner Loading Overlay */}
+      {showScannerOverlay && (
+        <StartupScannerOverlay
+          metrics={metrics}
+          onComplete={() => setShowScannerOverlay(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
