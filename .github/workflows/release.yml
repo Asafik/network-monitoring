@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
@@ -26,20 +29,61 @@ jobs:
       - name: Install Frontend Dependencies
         run: npm ci
 
-      - name: Build Tauri App
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Tauri Binary
+        run: npm run tauri:build -- --no-bundle
+
+      - name: Create Portable Zip Package
+        shell: pwsh
+        run: |
+          $releaseDir = "release-package"
+          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+          Copy-Item "src-tauri/target/release/network-monitor.exe" -Destination "$releaseDir/NetPulse.exe" -Force
+
+          $readmeContent = @"
+          ========================================================================
+             NETPULSE - WINDOWS NETWORK MONITOR & TASKBAR SPEED METER (${{ github.ref_name }})
+          ========================================================================
+
+          Aplikasi pemantau kecepatan internet desktop Windows, meteran kecepatan
+          taskbar (TrafficMonitor Style), dan pemutus internet aplikasi (Kill Switch).
+
+          CARA MENGGUNAKAN (SANGAT MUDAH):
+          --------------------------------
+          1. Cukup KLIK GANDA file 'NetPulse.exe' untuk langsung menjalankan aplikasi!
+          2. Kecepatan internet (Upload & Download) akan langsung muncul di taskbar
+             sebelah kanan di samping jam.
+          3. Klik ganda pada angka kecepatan di taskbar untuk membuka Dashboard utama.
+          4. (Opsional) Untuk menggunakan fitur Blokir Internet Aplikasi & intip password Wi-Fi,
+             klik kanan 'NetPulse.exe' lalu pilih 'Run as administrator'.
+
+          FITUR UTAMA:
+          ------------
+          - Taskbar Speed Meter (Menempel di samping jam seperti TrafficMonitor)
+          - Multi-Vector Internet Kill Switch (Blokir internet Chrome, Steam, Game, dll)
+          - Speed Test & Diagnostik Jaringan 1-Klik
+          - Web Dashboard di browser PC / HP (http://localhost:9090)
+          - Catatan Riwayat Kuota Offline di database lokal SQLite
+          - Super Ringan (Hanya ~10 MB RAM, <0.3% CPU)
+
+          Pengembang: Asafik Daroini
+          Repository: https://github.com/Asafik/network-monitoring
+          Lisensi: MIT License
+          "@
+
+          Set-Content -Path "$releaseDir/PANDUAN_CARA_PAKAI.txt" -Value $readmeContent -Encoding UTF8
+          Compress-Archive -Path "$releaseDir/*" -DestinationPath "NetPulse-${{ github.ref_name }}-Portable-x64.zip" -Force
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'NetPulse v__VERSION__'
-          releaseBody: |
-            ## 🌐 NetPulse v__VERSION__ - Official Release
+          name: 'NetPulse ${{ github.ref_name }} (Portable Release)'
+          body: |
+            ## 🌐 NetPulse ${{ github.ref_name }} - Official Portable Release
             
             Aplikasi pemantau jaringan desktop Windows modern, ultra-ringan (~10MB RAM), TrafficMonitor-style taskbar speed meter, dan pemutus internet aplikasi (Firewall Kill Switch).
             
-            ### 🚀 Cara Pakai Versi Portable:
-            1. Unduh file `NetPulse-Portable.zip` di bawah.
+            ### 🚀 Cara Pakai (Ekstrak & Langsung Jalan):
+            1. Unduh file `NetPulse-${{ github.ref_name }}-Portable-x64.zip` di bawah.
             2. Ekstrak file zip ke folder mana pun di PC Anda.
             3. Klik ganda `NetPulse.exe` untuk langsung menjalankan aplikasi!
             
@@ -49,5 +93,8 @@ jobs:
             - **Speed Test & Diagnostik**: 1-Klik Ping, Jitter, DNS Benchmark, & Flush DNS Cache.
             - **Web Dashboard**: Monitoring via browser PC / HP (`http://localhost:9090`).
             - **100% Offline**: Data tersimpan aman di database SQLite lokal.
-          releaseDraft: false
-          prerelease: false
+          files: |
+            NetPulse-*-Portable-x64.zip
+            src-tauri/target/release/network-monitor.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
