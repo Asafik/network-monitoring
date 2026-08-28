@@ -15,6 +15,7 @@ target/
 src-tauri/target/
 *.pdb
 *.exe
+*.zip
 
 # Local Database & Cache
 *.db

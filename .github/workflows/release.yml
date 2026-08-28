@@ -1,0 +1,53 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'NetPulse v__VERSION__'
+          releaseBody: |
+            ## 🌐 NetPulse v__VERSION__ - Official Release
+            
+            Aplikasi pemantau jaringan desktop Windows modern, ultra-ringan (~10MB RAM), TrafficMonitor-style taskbar speed meter, dan pemutus internet aplikasi (Firewall Kill Switch).
+            
+            ### 🚀 Cara Pakai Versi Portable:
+            1. Unduh file `NetPulse-Portable.zip` di bawah.
+            2. Ekstrak file zip ke folder mana pun di PC Anda.
+            3. Klik ganda `NetPulse.exe` untuk langsung menjalankan aplikasi!
+            
+            ### ✨ Fitur Unggulan:
+            - **Taskbar Speed Meter**: Menempel di samping jam taskbar Windows (Upload & Download).
+            - **Multi-Vector Kill Switch**: Blokir internet Chrome, Steam, Game Microsoft Store (UWP) secara instan.
+            - **Speed Test & Diagnostik**: 1-Klik Ping, Jitter, DNS Benchmark, & Flush DNS Cache.
+            - **Web Dashboard**: Monitoring via browser PC / HP (`http://localhost:9090`).
+            - **100% Offline**: Data tersimpan aman di database SQLite lokal.
+          releaseDraft: false
+          prerelease: false
