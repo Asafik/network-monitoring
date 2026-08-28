@@ -37,41 +37,48 @@ jobs:
         run: |
           $releaseDir = "release-package"
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-          Copy-Item "src-tauri/target/release/NetSpeedX.exe" -Destination "$releaseDir/NetSpeedX.exe" -Force
+          
+          if (Test-Path "src-tauri/target/release/NetSpeedX.exe") {
+            Copy-Item "src-tauri/target/release/NetSpeedX.exe" -Destination "$releaseDir/NetSpeedX.exe" -Force
+          } elseif (Test-Path "src-tauri/target/release/netspeedx.exe") {
+            Copy-Item "src-tauri/target/release/netspeedx.exe" -Destination "$releaseDir/NetSpeedX.exe" -Force
+          }
 
           $readmeContent = @"
           ========================================================================
              NETSPEEDX - WINDOWS NETWORK MONITOR & TASKBAR SPEED METER (${{ github.ref_name }})
           ========================================================================
 
-          Aplikasi pemantau kecepatan internet desktop Windows, meteran kecepatan
-          taskbar (TrafficMonitor Style), dan pemutus internet aplikasi (Kill Switch).
+          Ultra-lightweight Windows Network Monitor with a Taskbar Speed Meter (TrafficMonitor Style),
+          Internet Kill Switch, and Local Web Dashboard.
 
-          CARA MENGGUNAKAN (SANGAT MUDAH):
-          --------------------------------
-          1. Cukup KLIK GANDA file 'NetSpeedX.exe' untuk langsung menjalankan aplikasi!
-          2. Kecepatan internet (Upload & Download) akan langsung muncul di taskbar
-             sebelah kanan di samping jam.
-          3. Klik ganda pada angka kecepatan di taskbar untuk membuka Dashboard utama.
-          4. (Opsional) Untuk menggunakan fitur Blokir Internet Aplikasi & intip password Wi-Fi,
-             klik kanan 'NetSpeedX.exe' lalu pilih 'Run as administrator'.
+          QUICK START / CARA PAKAI:
+          ------------------------
+          1. Double-click 'NetSpeedX.exe' to run the app immediately!
+             (Cukup klik 2x file 'NetSpeedX.exe' untuk langsung menjalankan aplikasi).
+          2. Real-time speeds (Upload & Download) will appear docked right on your taskbar clock.
+             (Meteran kecepatan akan langsung muncul di taskbar samping jam).
+          3. Double-click the taskbar speed numbers to open the full dashboard.
+             (Klik ganda pada meteran untuk membuka dashboard utama).
+          4. (Optional) Run as Administrator for Firewall App Blocker & Wi-Fi password features.
+             (Jalankan sebagai administrator untuk fitur firewall & intip password Wi-Fi).
 
-          FITUR UTAMA:
-          ------------
-          - Taskbar Speed Meter (Menempel di samping jam seperti TrafficMonitor)
-          - Dynamic Taskbar Offset (Bisa disesuaikan untuk laptop & PC apa pun)
-          - Multi-Vector Internet Kill Switch (Blokir internet Chrome, Steam, Game, dll)
-          - Speed Test & Diagnostik Jaringan 1-Klik
-          - Web Dashboard di browser PC / HP (http://localhost:9090)
-          - Catatan Riwayat Kuota Offline di database lokal SQLite
-          - Super Ringan (Hanya ~10 MB RAM, <0.3% CPU)
+          FEATURES:
+          ---------
+          - Taskbar Speed Meter (TrafficMonitor Style) with 3 Visual Themes
+          - Dynamic Taskbar Offset Slider & Quick Presets
+          - Multi-Vector Internet Kill Switch (Block Chrome, Steam, UWP Games, etc.)
+          - 1-Click Speed Test & Network Diagnostics
+          - Local Web Dashboard (http://localhost:9090)
+          - Single Instance Protection (Windows Named Mutex)
+          - Ultra-Lightweight (~10 MB RAM, <0.3% CPU)
 
-          Pengembang: Asafik Daroini
+          Author: Asafik Daroini
           Repository: https://github.com/Asafik/network-monitoring
-          Lisensi: MIT License
+          License: MIT License
           "@
 
-          Set-Content -Path "$releaseDir/PANDUAN_CARA_PAKAI.txt" -Value $readmeContent -Encoding UTF8
+          Set-Content -Path "$releaseDir/README_CARA_PAKAI.txt" -Value $readmeContent -Encoding UTF8
           Compress-Archive -Path "$releaseDir/*" -DestinationPath "NetSpeedX-${{ github.ref_name }}-Portable-x64.zip" -Force
 
       - name: Publish GitHub Release
@@ -79,24 +86,31 @@ jobs:
         with:
           name: 'NetSpeedX ${{ github.ref_name }} (Official Portable Release)'
           body: |
-            ## 🌐 NetSpeedX ${{ github.ref_name }} - Official Release
+            ## 🌐 NetSpeedX ${{ github.ref_name }} - Official Portable Release
             
-            Aplikasi pemantau jaringan desktop Windows modern, ultra-ringan (~10MB RAM), TrafficMonitor-style taskbar speed meter, dan pemutus internet aplikasi (Firewall Kill Switch).
+            Ultra-lightweight Windows desktop network monitor (~10MB RAM), TrafficMonitor-style taskbar speed meter, and multi-vector internet kill switch.
             
-            ### 🚀 Cara Pakai (Ekstrak & Langsung Jalan):
-            1. Unduh file `NetSpeedX-${{ github.ref_name }}-Portable-x64.zip` di bawah.
-            2. Ekstrak file zip ke folder mana pun di PC Anda.
-            3. Klik ganda `NetSpeedX.exe` untuk langsung menjalankan aplikasi!
+            ---
             
-            ### ✨ Fitur Unggulan:
-            - **Taskbar Speed Meter**: Menempel di samping jam taskbar Windows (Upload & Download).
-            - **Dynamic Taskbar Offset**: Slider jarak posisi yang bisa disesuaikan untuk layar laptop & PC apa pun.
-            - **Multi-Vector Kill Switch**: Blokir internet Chrome, Steam, Game Microsoft Store (UWP) secara instan.
-            - **Speed Test & Diagnostik**: 1-Klik Ping, Jitter, DNS Benchmark, & Flush DNS Cache.
-            - **Web Dashboard**: Monitoring via browser PC / HP (`http://localhost:9090`).
-            - **100% Offline**: Data tersimpan aman di database SQLite lokal.
+            ### ⚡ Download & Quick Start (Ekstrak & Langsung Jalan):
+            1. Download **`NetSpeedX-${{ github.ref_name }}-Portable-x64.zip`** (or **`NetSpeedX.exe`**) below.
+            2. Extract and double-click **`NetSpeedX.exe`** to launch!
+            
+            > **Note:** If Windows SmartScreen appears on first run, click **More info** ➡️ **Run anyway**.
+            
+            ---
+            
+            ### ✨ Highlights / Fitur Utama:
+            - **📌 Taskbar Speed Meter**: Real-time Upload & Download speed next to Windows taskbar clock.
+            - **🎨 3 Visual Themes**: Transparent (Taskbar Blend), Solid Dark (High Contrast), and Glassmorphism (Neon Glow).
+            - **🎛️ Dynamic Taskbar Offset**: Slider & quick presets (200px, 280px, 410px) to prevent covering tray icons.
+            - **🔒 Single Instance Lock**: Windows Named Mutex prevents duplicate windows.
+            - **⛔ Multi-Vector Kill Switch**: 1-click internet cut for Desktop apps (.exe) and Microsoft Store games (UWP).
+            - **🚀 Speed Test & Diagnostics**: 1-click gateway ping, jitter, DNS benchmark & flush DNS.
+            - **📱 Local Web Dashboard**: Access live monitoring via browser at `http://localhost:9090`.
+            - **🪶 Ultra-Lightweight**: Only **~10 MB RAM** and **<0.3% CPU** (Built with Rust + Tauri v2).
           files: |
             NetSpeedX-*-Portable-x64.zip
-            src-tauri/target/release/NetSpeedX.exe
+            release-package/NetSpeedX.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
