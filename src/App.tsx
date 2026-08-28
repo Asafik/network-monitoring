@@ -767,7 +767,7 @@ export function App() {
               }}
               title="Buka Web Dashboard di Browser (Chrome / Edge / HP)"
             >
-              <span>🌐 Buka Web Monitor</span>
+              <span>Buka Web Monitor</span>
             </button>
 
             {!isNativeTauri && (

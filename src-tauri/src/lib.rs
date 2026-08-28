@@ -336,7 +336,7 @@ pub fn run() {
 
             // Build menu for System Tray
             let show_i = MenuItem::with_id(app, "show", "Buka Network Monitor", true, None::<&str>)?;
-            let web_i = MenuItem::with_id(app, "open_web", "🌐 Buka Web Monitor (Browser)", true, None::<&str>)?;
+            let web_i = MenuItem::with_id(app, "open_web", "Buka Web Monitor (Browser)", true, None::<&str>)?;
             let hide_i = MenuItem::with_id(app, "hide", "Sembunyikan ke Tray", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Keluar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &web_i, &hide_i, &quit_i])?;
@@ -493,7 +493,7 @@ pub fn run() {
                 let _ = widget.show();
             }
 
-            // High-frequency (80ms) background taskbar keeper: Ultra-lightweight CPU efficiency, guarantees 0ms flicker
+            // High-frequency (50ms) background taskbar keeper: Guarantees 0ms flicker / never disappears even when opening Start/Search
             let widget_keeper_handle = app.handle().clone();
             std::thread::spawn(move || {
                 loop {
@@ -502,7 +502,7 @@ pub fn run() {
                             taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
                         }
                     }
-                    std::thread::sleep(Duration::from_millis(80));
+                    std::thread::sleep(Duration::from_millis(50));
                 }
             });
 

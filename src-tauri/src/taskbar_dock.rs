@@ -7,6 +7,7 @@ struct RECT {
     bottom: i32,
 }
 
+const GWLP_HWNDPARENT: i32 = -8;
 const GWL_EXSTYLE: i32 = -20;
 const WS_EX_TOPMOST: isize = 0x00000008;
 const WS_EX_TOOLWINDOW: isize = 0x00000080;
@@ -60,7 +61,17 @@ pub fn make_taskbar_persistent(hwnd: isize) {
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, target_style);
         }
 
-        // 3. Keep Topmost Z-order without stealing focus
+        // 3. Set Owner to Shell_TrayWnd so it stays persistently visible during Start Menu & Windows Search
+        let tray_class: Vec<u16> = "Shell_TrayWnd\0".encode_utf16().collect();
+        let tray_hwnd = FindWindowW(tray_class.as_ptr(), std::ptr::null());
+        if tray_hwnd != 0 {
+            let current_parent = GetWindowLongPtrW(hwnd, GWLP_HWNDPARENT);
+            if current_parent != tray_hwnd {
+                SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, tray_hwnd);
+            }
+        }
+
+        // 4. Keep Topmost Z-order without stealing focus
         SetWindowPos(
             hwnd,
             HWND_TOPMOST,
