@@ -11,9 +11,9 @@ echo ========================================================
 echo Direktori Aktif: %CD%
 echo.
 
-:: 2. Auto-whitelist folder & Auto-sign executable
-echo [1/2] Menyiapkan izin keamanan Windows Security...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-MpPreference -ExclusionPath 'F:\network-monitor' -ErrorAction SilentlyContinue; & 'F:\network-monitor\sign-bin.ps1' -ErrorAction SilentlyContinue"
+:: 2. Auto-whitelist Rust toolchain & Project in Windows Security
+echo [1/2] Menyiapkan izin keamanan Windows Security untuk Cargo & Rust...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-MpPreference -ExclusionPath 'F:\network-monitor', '$env:USERPROFILE\.rustup', '$env:USERPROFILE\.cargo' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionProcess 'cargo.exe', 'rustc.exe', 'build-script-build.exe' -ErrorAction SilentlyContinue; & 'F:\network-monitor\sign-bin.ps1' -ErrorAction SilentlyContinue"
 
 :: 3. Execute Tauri Dev with CALL so the window stays open
 echo [2/2] Menjalankan NetPulse Desktop App...

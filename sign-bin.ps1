@@ -2,6 +2,8 @@ $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -Fir
 if (-not $cert) {
     $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=NetPulseDev" -CertStoreLocation Cert:\CurrentUser\My
 }
-if (Test-Path "F:\network-monitor\src-tauri\target\debug\network-monitor.exe") {
-    Set-AuthenticodeSignature -FilePath "F:\network-monitor\src-tauri\target\debug\network-monitor.exe" -Certificate $cert
+
+Get-ChildItem -Path "F:\network-monitor\src-tauri\target" -Recurse -Include "*.exe","*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+    Set-AuthenticodeSignature -FilePath $_.FullName -Certificate $cert -ErrorAction SilentlyContinue | Out-Null
+    Unblock-File -Path $_.FullName -ErrorAction SilentlyContinue
 }

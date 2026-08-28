@@ -294,7 +294,6 @@ fn ping_target(state: State<AppState>, host: String) -> Result<Option<f64>, Stri
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // App data directory for SQLite
             let app_data_dir = app

@@ -188,6 +188,12 @@ export function App() {
     scanWifiNetworks();
     refreshAllData();
 
+    // Auto-ensure Taskbar Speed Meter is active and docked on launch
+    if (isTauriEnv && showSpeedWidget) {
+      invoke('toggle_widget_window_command', { show: true }).catch(() => {});
+      invoke('snap_widget_to_taskbar_command').catch(() => {});
+    }
+
     if (isTauriEnv) {
       let unlistenMetrics: (() => void) | undefined;
       let unlistenAdapters: (() => void) | undefined;
