@@ -493,7 +493,7 @@ pub fn run() {
                 let _ = widget.show();
             }
 
-            // High-frequency (50ms) background taskbar keeper: Guarantees 0ms flicker / never disappears even for 1 second when opening apps
+            // High-frequency (80ms) background taskbar keeper: Ultra-lightweight CPU efficiency, guarantees 0ms flicker
             let widget_keeper_handle = app.handle().clone();
             std::thread::spawn(move || {
                 loop {
@@ -502,11 +502,22 @@ pub fn run() {
                             taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
                         }
                     }
-                    std::thread::sleep(Duration::from_millis(50));
+                    std::thread::sleep(Duration::from_millis(80));
                 }
             });
 
-            // Ensure default auto-start on Windows boot
+            // If launched manually (not via Windows Boot Autostart), display main dashboard window immediately
+            let is_autostart = std::env::args().any(|a| a == "--autostart" || a == "--minimized" || a == "--silent");
+            if let Some(main_win) = app.get_webview_window("main") {
+                if !is_autostart {
+                    let _ = main_win.show();
+                    let _ = main_win.set_focus();
+                } else {
+                    let _ = main_win.hide();
+                }
+            }
+
+            // Ensure default auto-start with Admin privileges on Windows boot
             autostart::init_default_autostart();
 
             Ok(())

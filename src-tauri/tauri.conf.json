@@ -19,7 +19,8 @@
         "height": 700,
         "minWidth": 880,
         "minHeight": 580,
-        "center": true
+        "center": true,
+        "visible": false
       },
       {
         "label": "widget",
