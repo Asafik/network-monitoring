@@ -79,6 +79,14 @@ export function App() {
   // Settings State
   const [settings, setSettings] = useState<AppSettings>(() => {
     const savedWidget = localStorage.getItem('netpulse_show_widget');
+    const savedSettings = localStorage.getItem('netpulse_settings');
+    let parsed: Partial<AppSettings> = {};
+    if (savedSettings) {
+      try {
+        parsed = JSON.parse(savedSettings);
+      } catch {}
+    }
+
     return {
       autoRefreshInterval: 1000,
       enableNotifications: true,
@@ -91,11 +99,12 @@ export function App() {
       quotaWarningThresholdPercent: 80,
       notificationCooldownSecs: 60,
       selectedDnsPreset: 'cloudflare',
-      startWithWindows: false,
+      startWithWindows: true,
       minimizeToTray: true,
       theme: 'light',
       showSpeedWidget: savedWidget !== null ? savedWidget === 'true' : true,
       speedWidgetStyle: 'classic',
+      ...parsed,
     };
   });
 
@@ -192,6 +201,22 @@ export function App() {
     if (isTauriEnv && showSpeedWidget) {
       invoke('toggle_widget_window_command', { show: true }).catch(() => {});
       invoke('snap_widget_to_taskbar_command').catch(() => {});
+    }
+
+    // Query real Windows Registry autostart state
+    if (isTauriEnv) {
+      invoke<boolean>('get_autostart_command')
+        .then((enabled) => setSettings((s) => ({ ...s, startWithWindows: enabled })))
+        .catch(() => {});
+    } else {
+      fetch('http://127.0.0.1:9090/api/autostart')
+        .then((r) => r.json())
+        .then((data) => {
+          if (typeof data.enabled === 'boolean') {
+            setSettings((s) => ({ ...s, startWithWindows: data.enabled }));
+          }
+        })
+        .catch(() => {});
     }
 
     if (isTauriEnv) {
@@ -618,7 +643,24 @@ export function App() {
   };
 
   const handleUpdateSettings = (newSettings: Partial<AppSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
+    setSettings((prev) => {
+      const updated = { ...prev, ...newSettings };
+      try {
+        localStorage.setItem('netpulse_settings', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (newSettings.startWithWindows !== undefined) {
+      if (isNativeTauri) {
+        invoke('set_autostart_command', { enabled: newSettings.startWithWindows }).catch(() => {});
+      } else {
+        fetch(`http://127.0.0.1:9090/api/autostart`, {
+          method: 'POST',
+          body: `enabled=${newSettings.startWithWindows}`,
+        }).catch(() => {});
+      }
+    }
   };
 
   const titles: Record<NavTab, { title: string; subtitle: string }> = {

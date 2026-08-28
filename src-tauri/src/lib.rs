@@ -1,5 +1,6 @@
 mod app_bandwidth;
 mod app_blocker;
+mod autostart;
 mod db;
 mod diagnostics_tools;
 mod monitor;
@@ -299,6 +300,21 @@ fn open_web_browser_command() -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_autostart_command() -> Result<bool, String> {
+    Ok(autostart::is_autostart_enabled())
+}
+
+#[tauri::command]
+fn set_autostart_command(enabled: bool) -> Result<bool, String> {
+    if enabled {
+        autostart::enable_autostart()?;
+    } else {
+        autostart::disable_autostart()?;
+    }
+    Ok(autostart::is_autostart_enabled())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -490,6 +506,9 @@ pub fn run() {
                 }
             });
 
+            // Ensure default auto-start on Windows boot
+            autostart::init_default_autostart();
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -525,6 +544,8 @@ pub fn run() {
             toggle_widget_window_command,
             snap_widget_to_taskbar_command,
             open_web_browser_command,
+            get_autostart_command,
+            set_autostart_command,
             ping_target
         ])
         .run(tauri::generate_context!())

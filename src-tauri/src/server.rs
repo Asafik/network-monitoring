@@ -59,6 +59,49 @@ pub fn start_local_api_server(
                         json_str
                     );
                     let _ = stream.write_all(response.as_bytes());
+                } else if request.starts_with("GET /api/autostart") {
+                    let is_enabled = crate::autostart::is_autostart_enabled();
+                    let payload = serde_json::json!({
+                        "enabled": is_enabled
+                    });
+                    let json_str = payload.to_string();
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\n\
+                         Content-Type: application/json\r\n\
+                         Access-Control-Allow-Origin: *\r\n\
+                         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
+                         Access-Control-Allow-Headers: *\r\n\
+                         Content-Length: {}\r\n\
+                         Connection: close\r\n\r\n{}",
+                        json_str.len(),
+                        json_str
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                } else if request.starts_with("POST /api/autostart") {
+                    let enabled = if request.contains("enabled=false") {
+                        let _ = crate::autostart::disable_autostart();
+                        false
+                    } else {
+                        let _ = crate::autostart::enable_autostart();
+                        true
+                    };
+                    let payload = serde_json::json!({
+                        "enabled": enabled,
+                        "status": "success"
+                    });
+                    let json_str = payload.to_string();
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\n\
+                         Content-Type: application/json\r\n\
+                         Access-Control-Allow-Origin: *\r\n\
+                         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
+                         Access-Control-Allow-Headers: *\r\n\
+                         Content-Length: {}\r\n\
+                         Connection: close\r\n\r\n{}",
+                        json_str.len(),
+                        json_str
+                    );
+                    let _ = stream.write_all(response.as_bytes());
                 } else if request.starts_with("GET /api/wifi-password") {
                     let metrics = latest_metrics.lock().unwrap().clone();
                     let ssid = metrics.connection_details.ssid.unwrap_or_default();
