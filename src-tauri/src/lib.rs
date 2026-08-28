@@ -291,6 +291,14 @@ fn ping_target(state: State<AppState>, host: String) -> Result<Option<f64>, Stri
     Ok(state.monitor.ping_host(ip))
 }
 
+#[tauri::command]
+fn open_web_browser_command() -> Result<(), String> {
+    let _ = std::process::Command::new("cmd")
+        .args(["/C", "start", "http://localhost:9090"])
+        .spawn();
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -312,9 +320,10 @@ pub fn run() {
 
             // Build menu for System Tray
             let show_i = MenuItem::with_id(app, "show", "Buka Network Monitor", true, None::<&str>)?;
+            let web_i = MenuItem::with_id(app, "open_web", "🌐 Buka Web Monitor (Browser)", true, None::<&str>)?;
             let hide_i = MenuItem::with_id(app, "hide", "Sembunyikan ke Tray", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Keluar", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_i, &hide_i, &quit_i])?;
+            let menu = Menu::with_items(app, &[&show_i, &web_i, &hide_i, &quit_i])?;
 
             // Build Tray Icon
             let _tray = TrayIconBuilder::new()
@@ -328,6 +337,11 @@ pub fn run() {
                             let _ = window.unminimize();
                             let _ = window.set_focus();
                         }
+                    }
+                    "open_web" => {
+                        let _ = std::process::Command::new("cmd")
+                            .args(["/C", "start", "http://localhost:9090"])
+                            .spawn();
                     }
                     "hide" => {
                         if let Some(window) = app.get_webview_window("main") {
@@ -510,6 +524,7 @@ pub fn run() {
             hide_main_window_command,
             toggle_widget_window_command,
             snap_widget_to_taskbar_command,
+            open_web_browser_command,
             ping_target
         ])
         .run(tauri::generate_context!())

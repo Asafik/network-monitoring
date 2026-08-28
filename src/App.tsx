@@ -696,6 +696,38 @@ export function App() {
               <span>{showSpeedWidget ? 'Taskbar Meter: ON' : 'Taskbar Meter: OFF'}</span>
             </button>
 
+            {/* Buka Web Monitor Button */}
+            <button
+              onClick={async () => {
+                if (isNativeTauri) {
+                  try {
+                    await invoke('open_web_browser_command');
+                  } catch {
+                    window.open('http://localhost:9090', '_blank');
+                  }
+                } else {
+                  window.open('http://localhost:9090', '_blank');
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(2, 132, 199, 0.3)',
+                background: 'rgba(2, 132, 199, 0.08)',
+                color: '#0284c7',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title="Buka Web Dashboard di Browser (Chrome / Edge / HP)"
+            >
+              <span>🌐 Buka Web Monitor</span>
+            </button>
+
             {!isNativeTauri && (
               <span
                 style={{
@@ -708,7 +740,7 @@ export function App() {
                   border: '1px solid rgba(2, 132, 199, 0.2)',
                 }}
               >
-                Browser Preview (Real Backend Connected)
+                Browser Mode
               </span>
             )}
             <button
