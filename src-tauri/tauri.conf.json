@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "network-monitor",
-  "version": "0.1.0",
-  "identifier": "com.networkmonitor.app",
+  "productName": "NetSpeedX",
+  "version": "1.0.0",
+  "identifier": "com.netspeedx.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Windows Network Monitor",
+        "title": "NetSpeedX",
         "url": "index.html",
         "width": 1050,
         "height": 700,
@@ -24,7 +24,7 @@
       },
       {
         "label": "widget",
-        "title": "NetPulse Taskbar Speed Meter",
+        "title": "NetSpeedX Taskbar Speed Meter",
         "url": "index.html?widget=true",
         "width": 125,
         "height": 40,

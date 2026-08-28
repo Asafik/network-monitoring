@@ -1,4 +1,4 @@
-# 🌐 NetPulse - Windows Network Monitor & Taskbar Speed Meter
+# 🌐 NetSpeedX - Windows Network Monitor & Taskbar Speed Meter
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(64--bit)-0078D6?style=for-the-badge&logo=windows" alt="Windows" />
@@ -17,7 +17,7 @@
 ---
 
 ## 📑 Daftar Isi / Table of Contents
-1. [📖 Tentang Aplikasi NetPulse](#-tentang-aplikasi-netpulse)
+1. [📖 Tentang Aplikasi NetSpeedX](#-tentang-aplikasi-netspeedx)
 2. [✨ Fitur-Fitur Unggulan](#-fitur-fitur-unggulan)
 3. [🎯 Panduan Lengkap Cara Pakai (User Guide)](#-panduan-lengkap-cara-pakai-user-guide)
    - [1. Cara Membuka & Menjalankan Aplikasi](#1-cara-membuka--menjalankan-aplikasi)
@@ -35,13 +35,14 @@
 
 ---
 
-## 📖 Tentang Aplikasi NetPulse
+## 📖 Tentang Aplikasi NetSpeedX
 
-**NetPulse** adalah aplikasi pemantau dan pengelola jaringan desktop generasi terbaru untuk **Windows 10 & Windows 11 (64-bit)**. Dibangun dari nol menggunakan kombinasi arsitektur **Rust (Tauri v2)** pada backend dan **React 19 (TypeScript + Vite)** pada frontend, NetPulse menggabungkan performa sistem native yang sangat kencang dengan antarmuka modern yang memukau.
+**NetSpeedX** adalah aplikasi pemantau dan pengelola jaringan desktop generasi terbaru untuk **Windows 10 & Windows 11 (64-bit)**. Dibangun dari nol menggunakan kombinasi arsitektur **Rust (Tauri v2)** pada backend dan **React 19 (TypeScript + Vite)** pada frontend, NetSpeedX menggabungkan performa sistem native yang sangat kencang dengan antarmuka modern yang memukau.
 
-### Mengapa NetPulse Berbeda?
+### Mengapa NetSpeedX Berbeda?
 - 🪶 **Ultra-Ringan & Hemat Baterai**: Hanya menggunakan **~10 MB RAM** dan **<0.3% CPU**, jauh lebih ringan dibanding aplikasi monitoring berbasis Electron biasa.
 - 📌 **Native Taskbar Speed Meter**: Angka kecepatan unduh dan unggah menempel langsung di Taskbar Windows (di samping jam/tray) seperti *TrafficMonitor* legendaris.
+- 🎛️ **Jarak Posisi Dinamis (Taskbar Offset Slider)**: Pengaturan jarak offset yang fleksibel sehingga pas untuk layar laptop dengan sedikit ikon tray maupun PC dengan banyak ikon tray tanpa menimpa ikon sistem Windows.
 - 🔒 **100% Offline & Privasi Terjaga**: Seluruh pencatatan kuota disimpan secara lokal di database **SQLite** (`network_monitor.db`). Tidak ada data atau riwayat internet yang dikirim keluar ke server cloud mana pun.
 - 🛡️ **Firewall Kill Switch Multi-Vector**: Mampu memblokir akses internet software desktop (.exe) maupun Game Microsoft Store (UWP/AppX) secara instan tanpa membuat komputer freeze atau lag.
 - 📱 **Embedded Web Dashboard**: Pantau bandwidth PC Anda langsung dari browser di laptop lain, smartphone, atau tablet melalui jaringan Wi-Fi lokal.
@@ -53,7 +54,7 @@
 ### 1. ⚡ Taskbar Speed Meter (TrafficMonitor Native Style)
 - **Menempel Sempurna di Taskbar**: Menampilkan kecepatan upload (`↑`) dan download (`↓`) secara real-time setiap detik.
 - **Anti-Flicker & Persisten**: Terikat langsung ke window Taskbar Windows (`Shell_TrayWnd`), sehingga **tidak akan pernah hilang atau berkedip saat Anda membuka Start Menu atau Search Windows**.
-- **Dynamic 410px Clearance**: Memiliki jarak aman otomatis di sebelah kiri area System Tray, sehingga **tidak akan menimpa ikon Windows dinamis** (seperti ikon Lokasi, Mikrofon, Antivirus, atau panah tray `^`).
+- **Jarak Posisi Bisa Disesuaikan (Custom Offset Slider)**: Dilengkapi slider dan tombol preset (Kompak Laptop 200px / Standar 280px / Lebar 410px) di menu Settings agar meteran tidak menimpa ikon tray Windows.
 - **Dukungan Screenshot Penuh**: Dapat ditangkap secara sempurna saat Anda mengambil screenshot dengan tombol `Win + Shift + S` (Snipping Tool).
 - **Interaksi Fleksibel**: Klik ganda untuk membuka jendela Dashboard utama, klik kanan untuk menu cepat tema & snap posisi.
 
@@ -74,7 +75,7 @@
 - **Grafik Gelombang Real-Time**: Visualisasi grafik lalu lintas unduh dan unggah yang diperbarui setiap detik.
 - **Skor Kesehatan Jaringan (0–100)**: Indikator cerdas yang mengukur stabilitas dan kualitas koneksi internet Anda.
 - **Per-App Traffic & Active Sockets**: Lihat aplikasi apa saja yang sedang menyedot kuota internet beserta alamat IP dan port tujuannya.
-- **Histori Pemakaian Kuota & Outage Tracker**: Rekapitulasi pemakaian data harian, mingguan, bulanan, serta pencatatan otomatis saat internet putus/downtime.
+- **Histori Pemakaian Kuota & Outage Tracker**: Rekapitulasi pemakaian data harian, mingguan, bulanan, serta pencatatan otomatis saat internet sempat terputus (downtime).
 
 ### 5. 🔑 Wi-Fi Password Recovery & Pemindai Sinyal
 - **Lihat Password Wi-Fi Tersimpan**: Menampilkan dan menyalin kata sandi jaringan Wi-Fi yang pernah terhubung ke PC Anda.
@@ -82,33 +83,30 @@
 - **Deteksi LAN Adapter**: Menampilkan status koneksi kabel LAN Ethernet dan kecepatan bandwidth antarmuka.
 
 ### 6. 🌐 Embedded Web Dashboard (Port 9090)
-- NetPulse memiliki server web lokal terintegrasi. Anda bisa membuka dashboard pemantauan jaringan di browser desktop atau browser smartphone/tablet yang terhubung pada jaringan Wi-Fi yang sama.
+- NetSpeedX memiliki server web lokal terintegrasi. Anda bisa membuka dashboard pemantauan jaringan di browser desktop atau browser smartphone/tablet yang terhubung pada jaringan Wi-Fi yang sama.
 
 ---
 
 ## 🎯 Panduan Lengkap Cara Pakai (User Guide)
 
 ### 1. Cara Membuka & Menjalankan Aplikasi
-- **Buka Langsung**: Cukup klik ganda file **`NetPulse.exe`** di folder aplikasi.
-- **Mode Administrator**: Untuk menggunakan fitur blokir firewall aplikasi dan melihat password Wi-Fi, klik kanan `NetPulse.exe` ➡️ pilih **"Run as administrator"**.
+- **Buka Langsung**: Cukup klik ganda file **`NetSpeedX.exe`** di folder aplikasi.
+- **Mode Administrator**: Untuk menggunakan fitur blokir firewall aplikasi dan melihat password Wi-Fi, klik kanan `NetSpeedX.exe` ➡️ pilih **"Run as administrator"**.
 
 ---
 
 ### 2. Menggunakan Taskbar Speed Meter (Di Samping Jam)
-Saat NetPulse berjalan, meteran kecepatan akan otomatis muncul di taskbar pojok kanan bawah:
+Saat NetSpeedX berjalan, meteran kecepatan akan otomatis muncul di taskbar pojok kanan bawah:
 - **Warna Oranye (`↑:`)**: Menunjukkan kecepatan internet **Upload** saat ini.
 - **Warna Hijau (`↓:`)**: Menunjukkan kecepatan internet **Download** saat ini.
-- **Buka Dashboard**: **Klik ganda (Double Click)** pada angka kecepatan untuk langsung membuka jendela utama NetPulse.
-- **Klik Kanan pada Meteran**: Untuk memunculkan menu cepat:
-  - *Buka Dashboard*
-  - *Snap to Taskbar (Kembalikan ke posisi pas di taskbar)*
-  - *Pilihan Tema Warna (TrafficMonitor Classic, Cyberpunk, Neon Blue, Emerald Green)*
-- **Geser Posisi (Drag & Drop)**: Anda bisa menahan klik kiri pada meteran lalu menggesernya ke posisi mana pun di taskbar sesuai selera Anda.
+- **Buka Dashboard**: **Klik ganda (Double Click)** pada angka kecepatan untuk langsung membuka jendela utama NetSpeedX.
+- **Atur Jarak Posisi**: Masuk ke menu **Settings** ➡️ geser slider **Jarak Posisi Taskbar** (misal 200px untuk laptop atau 280px untuk PC) agar pas di samping ikon tray Anda.
+- **Klik Kanan pada Meteran**: Untuk memunculkan menu cepat (Pilihan Tema, Snap to Taskbar, dsb.).
 
 ---
 
 ### 3. Memutus / Mengizinkan Internet Aplikasi (Kill Switch)
-1. Buka jendela utama NetPulse ➡️ Masuk ke menu **"Aplikasi" (App Traffic)** di sidebar kiri.
+1. Buka jendela utama NetSpeedX ➡️ Masuk ke menu **"Aplikasi" (App Traffic)** di sidebar kiri.
 2. Di daftar aplikasi yang sedang aktif menggunakan internet, cari aplikasi atau game yang ingin Anda putus koneksinya.
 3. Klik tombol **"Blokir Internet"** (berwarna merah).
 4. Status akan berubah menjadi **🔴 Terblokir**. Aplikasi tersebut tidak akan bisa mengakses internet sama sekali sampai Anda mengklik tombol **"Buka Blokir"** (berwarna hijau).
@@ -116,10 +114,10 @@ Saat NetPulse berjalan, meteran kecepatan akan otomatis muncul di taskbar pojok 
 ---
 
 ### 4. Membuka Web Dashboard di Browser & HP / Tablet
-1. Pastikan NetPulse sedang aktif di PC Anda.
+1. Pastikan NetSpeedX sedang aktif di PC Anda.
 2. **Di Komputer yang Sama**:
    - Buka browser (Chrome / Edge / Firefox) ➡️ Buka alamat: **`http://localhost:9090`**
-   - Atau klik tombol **"Buka Web Monitor"** di pojok kanan atas jendela NetPulse / dari menu klik kanan ikon tray.
+   - Atau klik tombol **"Buka Web Monitor"** di pojok kanan atas jendela NetSpeedX / dari menu klik kanan ikon tray.
 3. **Dari HP / Tablet (Jaringan Wi-Fi yang Sama)**:
    - Cek alamat IP lokal PC Anda (contoh: `192.168.1.15`).
    - Buka browser di HP Anda lalu ketik: **`http://192.168.1.15:9090`**
@@ -147,7 +145,7 @@ Saat NetPulse berjalan, meteran kecepatan akan otomatis muncul di taskbar pojok 
 ### 7. Pengaturan Auto-Start Saat PC Menyala (Boot)
 - Masuk ke menu **"Pengaturan" (Settings)** ➡️ aktifkan saklar **"Jalankan Otomatis saat Windows Menyala" (Auto-Start)**.
 - **Cara Kerja Saat PC Dinyalakan Ulang / Restart**:
-  - NetPulse akan otomatis berjalan di latar belakang secara hening (**Silent Mode**).
+  - NetSpeedX akan otomatis berjalan di latar belakang secara hening (**Silent Mode**).
   - Jendela dashboard utama **tidak akan muncul mengganggu di tengah layar** (tersimpan rapi di system tray pojok kanan bawah).
   - **Taskbar Speed Meter** di samping jam akan langsung aktif dan muncul seketika!
 
@@ -178,7 +176,7 @@ npm run tauri:dev
 npm run tauri:build -- --no-bundle
 ```
 File executable `.exe` hasil build akan tersedia di:
-`src-tauri/target/release/network-monitor.exe`
+`src-tauri/target/release/NetSpeedX.exe`
 
 ---
 
@@ -186,10 +184,10 @@ File executable `.exe` hasil build akan tersedia di:
 
 | Kendala | Penyebab | Solusi |
 |---|---|---|
-| **Fitur Blokir Aplikasi / Password Wi-Fi tidak berfungsi** | Aplikasi tidak memiliki hak akses administrator | Tutup aplikasi, lalu klik kanan `NetPulse.exe` ➡️ pilih **"Run as administrator"**. |
-| **Meteran Taskbar tertutup aplikasi lain** | Window state sistem berubah | Klik kanan meteran taskbar ➡️ pilih **"Snap to Taskbar"** atau klik ikon NetPulse di tray. |
+| **Fitur Blokir Aplikasi / Password Wi-Fi tidak berfungsi** | Aplikasi tidak memiliki hak akses administrator | Tutup aplikasi, lalu klik kanan `NetSpeedX.exe` ➡️ pilih **"Run as administrator"**. |
+| **Meteran Taskbar menimpa ikon tray Windows** | Jumlah ikon tray di layar berbeda | Masuk ke **Settings** ➡️ sesuaikan **Jarak Posisi Taskbar** (misal 200px untuk laptop). |
 | **Pesan `os error 4551` saat kompilasi** | Smart App Control Windows 11 memblokir binary dev | Buka Windows Security ➡️ *App & browser control* ➡️ ubah *Smart App Control* ke *Off* atau jalankan `sign-bin.ps1`. |
-| **Web Monitor di browser tidak bisa dibuka** | Server lokal belum aktif atau diblokir firewall | Pastikan `NetPulse.exe` sedang berjalan, lalu buka alamat `http://localhost:9090`. |
+| **Web Monitor di browser tidak bisa dibuka** | Server lokal belum aktif atau diblokir firewall | Pastikan `NetSpeedX.exe` sedang berjalan, lalu buka alamat `http://localhost:9090`. |
 
 ---
 
@@ -202,7 +200,7 @@ File executable `.exe` hasil build akan tersedia di:
 | **Frontend Framework** | [React 19](https://react.dev/) | Antarmuka pengguna modern, dinamis, dan responsif |
 | **Bahasa Pemrograman** | [TypeScript 5.8](https://www.typescriptlang.org/) | Jaminan keamanan tipe data (type-safety) antara Frontend dan Backend IPC |
 | **Database Lokal** | [SQLite (rusqlite)](https://sqlite.org/) | Penyimpanan data riwayat pemakaian kuota dan log jaringan secara offline |
-| **Taskbar Docking** | Win32 API Hook | Z-Order Topmost Keeper, parent binding `Shell_TrayWnd`, dan dynamic tray clearance |
+| **Taskbar Docking** | Win32 API Hook | Z-Order Topmost Keeper, parent binding `Shell_TrayWnd`, dan custom offset slider |
 
 ---
 
@@ -214,7 +212,7 @@ network-monitoring/
 │   ├── src/
 │   │   ├── main.rs                # Entry point & optimasi akselerasi grafis
 │   │   ├── lib.rs                 # Handler Tauri IPC, System Tray, dan background keeper loop
-│   │   ├── taskbar_dock.rs        # Win32 taskbar integration & GWLP_HWNDPARENT binding
+│   │   ├── taskbar_dock.rs        # Win32 taskbar integration, dynamic offset & GWLP_HWNDPARENT binding
 │   │   ├── autostart.rs           # Integrasi Windows Registry Startup & Silent boot
 │   │   ├── app_blocker.rs         # Engine Firewall Kill Switch (Win32 & Microsoft Store UWP)
 │   │   ├── app_bandwidth.rs       # Monitoring proses aktif, port soket & pemakaian bandwidth
@@ -224,7 +222,7 @@ network-monitoring/
 │   │   ├── db.rs                  # Schema SQLite & persistensi riwayat kuota / outage
 │   │   └── server.rs              # Embedded HTTP Web Server (Port 9090)
 │   ├── Cargo.toml                 # Dependensi crate Rust
-│   └── tauri.conf.json            # Konfigurasi multi-window (Dashboard & Taskbar Widget)
+│   └── tauri.conf.json            # Konfigurasi multi-window (NetSpeedX & Taskbar Widget)
 ├── src/                           # Frontend React 19 + TypeScript
 │   ├── components/                # Sidebar navigasi, AppIcon, TaskbarSpeedWidget, dsb.
 │   ├── views/                     # DashboardView, AppsView, SpeedTestView, DiagnosticsView, AdaptersView, HistoryView, SettingsView
@@ -232,7 +230,7 @@ network-monitoring/
 │   ├── utils/                     # Format byte/detik, kalkulasi warna & tema
 │   ├── App.tsx                    # Root UI Coordinator & routing
 │   └── index.css                  # Desain sistem modern, glassmorphism & animasi
-├── NetPulse.exe                   # Binary Executable Portable Siap Pakai
+├── NetSpeedX.exe                  # Binary Executable Portable Siap Pakai
 ├── sign-bin.ps1                   # Script penandatanganan sertifikat Windows Authenticode
 ├── package.json                   # Dependensi npm & build script
 └── README.md                      # Dokumentasi komprehensif proyek

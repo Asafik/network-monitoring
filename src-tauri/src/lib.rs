@@ -293,6 +293,17 @@ fn ping_target(state: State<AppState>, host: String) -> Result<Option<f64>, Stri
 }
 
 #[tauri::command]
+fn set_taskbar_offset_command(offset: i32) -> Result<i32, String> {
+    taskbar_dock::set_taskbar_offset(offset);
+    Ok(taskbar_dock::get_taskbar_offset())
+}
+
+#[tauri::command]
+fn get_taskbar_offset_command() -> Result<i32, String> {
+    Ok(taskbar_dock::get_taskbar_offset())
+}
+
+#[tauri::command]
 fn open_web_browser_command() -> Result<(), String> {
     let _ = std::process::Command::new("cmd")
         .args(["/C", "start", "http://localhost:9090"])
@@ -335,11 +346,12 @@ pub fn run() {
             });
 
             // Build menu for System Tray
-            let show_i = MenuItem::with_id(app, "show", "Buka Network Monitor", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "Buka NetSpeedX", true, None::<&str>)?;
+            let toggle_widget_i = MenuItem::with_id(app, "toggle_widget", "Tampilkan/Sembunyikan Speed Meter", true, None::<&str>)?;
             let web_i = MenuItem::with_id(app, "open_web", "Buka Web Monitor (Browser)", true, None::<&str>)?;
             let hide_i = MenuItem::with_id(app, "hide", "Sembunyikan ke Tray", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Keluar", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_i, &web_i, &hide_i, &quit_i])?;
+            let menu = Menu::with_items(app, &[&show_i, &toggle_widget_i, &web_i, &hide_i, &quit_i])?;
 
             // Build Tray Icon
             let _tray = TrayIconBuilder::new()
@@ -352,6 +364,15 @@ pub fn run() {
                             let _ = window.show();
                             let _ = window.unminimize();
                             let _ = window.set_focus();
+                        }
+                    }
+                    "toggle_widget" => {
+                        if let Some(widget) = app.get_webview_window("widget") {
+                            if widget.is_visible().unwrap_or(false) {
+                                let _ = widget.hide();
+                            } else {
+                                let _ = widget.show();
+                            }
                         }
                     }
                     "open_web" => {
@@ -557,6 +578,8 @@ pub fn run() {
             open_web_browser_command,
             get_autostart_command,
             set_autostart_command,
+            set_taskbar_offset_command,
+            get_taskbar_offset_command,
             ping_target
         ])
         .run(tauri::generate_context!())

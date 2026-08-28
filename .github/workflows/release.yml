@@ -37,11 +37,11 @@ jobs:
         run: |
           $releaseDir = "release-package"
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-          Copy-Item "src-tauri/target/release/network-monitor.exe" -Destination "$releaseDir/NetPulse.exe" -Force
+          Copy-Item "src-tauri/target/release/NetSpeedX.exe" -Destination "$releaseDir/NetSpeedX.exe" -Force
 
           $readmeContent = @"
           ========================================================================
-             NETPULSE - WINDOWS NETWORK MONITOR & TASKBAR SPEED METER (${{ github.ref_name }})
+             NETSPEEDX - WINDOWS NETWORK MONITOR & TASKBAR SPEED METER (${{ github.ref_name }})
           ========================================================================
 
           Aplikasi pemantau kecepatan internet desktop Windows, meteran kecepatan
@@ -49,16 +49,17 @@ jobs:
 
           CARA MENGGUNAKAN (SANGAT MUDAH):
           --------------------------------
-          1. Cukup KLIK GANDA file 'NetPulse.exe' untuk langsung menjalankan aplikasi!
+          1. Cukup KLIK GANDA file 'NetSpeedX.exe' untuk langsung menjalankan aplikasi!
           2. Kecepatan internet (Upload & Download) akan langsung muncul di taskbar
              sebelah kanan di samping jam.
           3. Klik ganda pada angka kecepatan di taskbar untuk membuka Dashboard utama.
           4. (Opsional) Untuk menggunakan fitur Blokir Internet Aplikasi & intip password Wi-Fi,
-             klik kanan 'NetPulse.exe' lalu pilih 'Run as administrator'.
+             klik kanan 'NetSpeedX.exe' lalu pilih 'Run as administrator'.
 
           FITUR UTAMA:
           ------------
           - Taskbar Speed Meter (Menempel di samping jam seperti TrafficMonitor)
+          - Dynamic Taskbar Offset (Bisa disesuaikan untuk laptop & PC apa pun)
           - Multi-Vector Internet Kill Switch (Blokir internet Chrome, Steam, Game, dll)
           - Speed Test & Diagnostik Jaringan 1-Klik
           - Web Dashboard di browser PC / HP (http://localhost:9090)
@@ -71,30 +72,31 @@ jobs:
           "@
 
           Set-Content -Path "$releaseDir/PANDUAN_CARA_PAKAI.txt" -Value $readmeContent -Encoding UTF8
-          Compress-Archive -Path "$releaseDir/*" -DestinationPath "NetPulse-${{ github.ref_name }}-Portable-x64.zip" -Force
+          Compress-Archive -Path "$releaseDir/*" -DestinationPath "NetSpeedX-${{ github.ref_name }}-Portable-x64.zip" -Force
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: 'NetPulse ${{ github.ref_name }} (Portable Release)'
+          name: 'NetSpeedX ${{ github.ref_name }} (Official Portable Release)'
           body: |
-            ## 🌐 NetPulse ${{ github.ref_name }} - Official Portable Release
+            ## 🌐 NetSpeedX ${{ github.ref_name }} - Official Release
             
             Aplikasi pemantau jaringan desktop Windows modern, ultra-ringan (~10MB RAM), TrafficMonitor-style taskbar speed meter, dan pemutus internet aplikasi (Firewall Kill Switch).
             
             ### 🚀 Cara Pakai (Ekstrak & Langsung Jalan):
-            1. Unduh file `NetPulse-${{ github.ref_name }}-Portable-x64.zip` di bawah.
+            1. Unduh file `NetSpeedX-${{ github.ref_name }}-Portable-x64.zip` di bawah.
             2. Ekstrak file zip ke folder mana pun di PC Anda.
-            3. Klik ganda `NetPulse.exe` untuk langsung menjalankan aplikasi!
+            3. Klik ganda `NetSpeedX.exe` untuk langsung menjalankan aplikasi!
             
             ### ✨ Fitur Unggulan:
             - **Taskbar Speed Meter**: Menempel di samping jam taskbar Windows (Upload & Download).
+            - **Dynamic Taskbar Offset**: Slider jarak posisi yang bisa disesuaikan untuk layar laptop & PC apa pun.
             - **Multi-Vector Kill Switch**: Blokir internet Chrome, Steam, Game Microsoft Store (UWP) secara instan.
             - **Speed Test & Diagnostik**: 1-Klik Ping, Jitter, DNS Benchmark, & Flush DNS Cache.
             - **Web Dashboard**: Monitoring via browser PC / HP (`http://localhost:9090`).
             - **100% Offline**: Data tersimpan aman di database SQLite lokal.
           files: |
-            NetPulse-*-Portable-x64.zip
-            src-tauri/target/release/network-monitor.exe
+            NetSpeedX-*-Portable-x64.zip
+            src-tauri/target/release/NetSpeedX.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -254,6 +254,7 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   showSpeedWidget?: boolean;
   speedWidgetStyle?: 'classic' | 'glass' | 'compact';
+  taskbarOffset?: number;
 }
 
 export type NavTab = 'dashboard' | 'speedtest' | 'diagnostics' | 'apps' | 'adapters' | 'history' | 'settings';

@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, metri
             <IconActivity size={22} />
           </div>
           <div className="brand-info">
-            <span className="brand-title">NetPulse Monitor</span>
+            <span className="brand-title">NetSpeedX</span>
             <div className="status-badge">
               <span className={`status-dot ${metrics.status}`} />
               <span style={{ textTransform: 'capitalize' }}>

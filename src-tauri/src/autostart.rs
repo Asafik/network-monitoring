@@ -2,9 +2,9 @@ use std::io::Write;
 use std::process::Command;
 
 const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-const APP_NAME: &str = "NetPulse";
+const APP_NAME: &str = "NetSpeedX";
 
-/// Check if NetPulse is registered in Windows Startup Registry or Startup Folder
+/// Check if NetSpeedX is registered in Windows Startup Registry or Startup Folder
 pub fn is_autostart_enabled() -> bool {
     let reg_out = Command::new("reg")
         .args(["query", RUN_KEY, "/v", APP_NAME])
@@ -24,7 +24,7 @@ pub fn is_autostart_enabled() -> bool {
             .join("Start Menu")
             .join("Programs")
             .join("Startup")
-            .join("NetPulse.lnk");
+            .join("NetSpeedX.lnk");
         if shortcut_path.exists() {
             return true;
         }
@@ -38,7 +38,7 @@ pub fn enable_autostart() -> Result<(), String> {
     let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
     let exe_str = exe_path.to_string_lossy().to_string();
 
-    // 1. Remove any RUNASADMIN compatibility flag (Windows Explorer blocks Run key if RUNASADMIN is set)
+    // 1. Remove any leftover RUNASADMIN compatibility flag or old NetPulse entries
     let _ = Command::new("reg")
         .args([
             "delete",
@@ -49,14 +49,18 @@ pub fn enable_autostart() -> Result<(), String> {
         ])
         .output();
 
+    let _ = Command::new("reg")
+        .args(["delete", RUN_KEY, "/v", "NetPulse", "/f"])
+        .output();
+
     // 2. Write and import .reg file for 100% clean quote formatting without commandline escape bugs
     let escaped_exe = exe_str.replace('\\', "\\\\");
     let reg_content = format!(
-        "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run]\r\n\"NetPulse\"=\"\\\"{}\\\" --autostart\"\r\n",
+        "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run]\r\n\"NetSpeedX\"=\"\\\"{}\\\" --autostart\"\r\n",
         escaped_exe
     );
 
-    let temp_reg = std::env::temp_dir().join("netpulse_autostart.reg");
+    let temp_reg = std::env::temp_dir().join("netspeedx_autostart.reg");
     if let Ok(mut file) = std::fs::File::create(&temp_reg) {
         let _ = file.write_all(reg_content.as_bytes());
     }
@@ -77,6 +81,12 @@ pub fn enable_autostart() -> Result<(), String> {
             .join("Startup");
 
         if startup_dir.exists() {
+            // Delete old NetPulse.lnk if exists
+            let old_shortcut = startup_dir.join("NetPulse.lnk");
+            if old_shortcut.exists() {
+                let _ = std::fs::remove_file(old_shortcut);
+            }
+
             let working_dir = exe_path
                 .parent()
                 .unwrap_or(std::path::Path::new(""))
@@ -84,7 +94,7 @@ pub fn enable_autostart() -> Result<(), String> {
                 .replace('\'', "''");
 
             let ps_cmd = format!(
-                "$wsh = New-Object -ComObject WScript.Shell; $s = $wsh.CreateShortcut([IO.Path]::Combine($env:APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'NetPulse.lnk')); $s.TargetPath = '{}'; $s.Arguments = '--autostart'; $s.WorkingDirectory = '{}'; $s.Save()",
+                "$wsh = New-Object -ComObject WScript.Shell; $s = $wsh.CreateShortcut([IO.Path]::Combine($env:APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'NetSpeedX.lnk')); $s.TargetPath = '{}'; $s.Arguments = '--autostart'; $s.WorkingDirectory = '{}'; $s.Save()",
                 exe_str.replace('\'', "''"),
                 working_dir
             );
@@ -107,16 +117,26 @@ pub fn disable_autostart() -> Result<(), String> {
         .args(["delete", RUN_KEY, "/v", APP_NAME, "/f"])
         .output();
 
+    let _ = Command::new("reg")
+        .args(["delete", RUN_KEY, "/v", "NetPulse", "/f"])
+        .output();
+
     if let Ok(appdata) = std::env::var("APPDATA") {
-        let shortcut_path = std::path::Path::new(&appdata)
+        let startup_dir = std::path::Path::new(&appdata)
             .join("Microsoft")
             .join("Windows")
             .join("Start Menu")
             .join("Programs")
-            .join("Startup")
-            .join("NetPulse.lnk");
+            .join("Startup");
+
+        let shortcut_path = startup_dir.join("NetSpeedX.lnk");
         if shortcut_path.exists() {
             let _ = std::fs::remove_file(shortcut_path);
+        }
+
+        let old_shortcut = startup_dir.join("NetPulse.lnk");
+        if old_shortcut.exists() {
+            let _ = std::fs::remove_file(old_shortcut);
         }
     }
 

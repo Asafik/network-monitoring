@@ -1985,8 +1985,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "network-monitor"
-version = "0.1.0"
+name = "netspeedx"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "reqwest 0.12.28",

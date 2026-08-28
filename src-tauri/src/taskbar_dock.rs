@@ -43,6 +43,18 @@ extern "system" {
     fn SetWindowDisplayAffinity(hWnd: isize, dwAffinity: u32) -> i32;
 }
 
+use std::sync::atomic::{AtomicI32, Ordering};
+
+static TASKBAR_OFFSET: AtomicI32 = AtomicI32::new(260);
+
+pub fn set_taskbar_offset(offset: i32) {
+    TASKBAR_OFFSET.store(offset, Ordering::Relaxed);
+}
+
+pub fn get_taskbar_offset() -> i32 {
+    TASKBAR_OFFSET.load(Ordering::Relaxed)
+}
+
 const SM_CXSCREEN: i32 = 0;
 const SM_CYSCREEN: i32 = 1;
 
@@ -88,6 +100,7 @@ pub fn get_taskbar_dock_position(widget_width: i32, widget_height: i32) -> (i32,
     unsafe {
         let screen_w = GetSystemMetrics(SM_CXSCREEN);
         let screen_h = GetSystemMetrics(SM_CYSCREEN);
+        let offset = get_taskbar_offset().max(100).min(800);
 
         let tray_class: Vec<u16> = "Shell_TrayWnd\0".encode_utf16().collect();
         let notify_class: Vec<u16> = "TrayNotifyWnd\0".encode_utf16().collect();
@@ -110,19 +123,18 @@ pub fn get_taskbar_dock_position(widget_width: i32, widget_height: i32) -> (i32,
 
                 // Ensure notify_rect.left is valid and not zero/offscreen
                 if notify_rect.left > 300 && notify_rect.left < taskbar_rect.right {
-                    let x = notify_rect.left - widget_width - 24;
+                    let x = notify_rect.left - widget_width - 16;
                     return (x, y);
                 }
             }
 
-            // Windows 11 XAML taskbar: System tray with Clock + Quick Settings + Location/Mic/Apps + Chevron is ~280-360px wide.
-            // Position widget comfortably to the left with dynamic 410px clearance so it never overlaps dynamic tray icons.
-            let x = (taskbar_rect.right - 410 - widget_width).max(50);
+            // Dynamic taskbar clearance based on customizable offset
+            let x = (taskbar_rect.right - offset - widget_width).max(50);
             return (x, y);
         }
 
         // Fallback for primary screen metrics
-        let x = (screen_w - 410 - widget_width).max(50);
+        let x = (screen_w - offset - widget_width).max(50);
         let y = (screen_h - 44).max(0);
         (x, y)
     }

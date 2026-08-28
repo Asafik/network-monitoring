@@ -260,6 +260,111 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </select>
           </div>
 
+          {/* Dynamic Taskbar Offset Slider */}
+          <div className="setting-row" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <div className="setting-info">
+                <h4>Jarak Posisi Taskbar (Offset Tray)</h4>
+                <p>Geser untuk mengatur posisi meteran agar pas dan tidak menimpa ikon tray Windows</p>
+              </div>
+              <span className="mono-text" style={{ fontWeight: 800, color: '#0284c7', fontSize: '13px', background: 'rgba(2, 132, 199, 0.1)', padding: '3px 10px', borderRadius: '6px' }}>
+                {settings.taskbarOffset || 260} px
+              </span>
+            </div>
+
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>150px</span>
+              <input
+                type="range"
+                min="150"
+                max="500"
+                step="10"
+                value={settings.taskbarOffset || 260}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  onUpdateSettings({ taskbarOffset: val });
+                  if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+                    import('@tauri-apps/api/core').then(({ invoke }) => {
+                      invoke('set_taskbar_offset_command', { offset: val }).catch(() => {});
+                    });
+                  }
+                }}
+                style={{ flex: 1, accentColor: '#0284c7', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>500px</span>
+            </div>
+
+            {/* Quick Preset Buttons */}
+            <div style={{ display: 'flex', gap: '8px', width: '100%', flexWrap: 'wrap', marginTop: '2px' }}>
+              <button
+                onClick={() => {
+                  onUpdateSettings({ taskbarOffset: 200 });
+                  if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+                    import('@tauri-apps/api/core').then(({ invoke }) => {
+                      invoke('set_taskbar_offset_command', { offset: 200 }).catch(() => {});
+                    });
+                  }
+                }}
+                style={{
+                  background: (settings.taskbarOffset || 260) === 200 ? '#0284c7' : '#f1f5f9',
+                  color: (settings.taskbarOffset || 260) === 200 ? '#ffffff' : '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Kompak Laptop (200px)
+              </button>
+              <button
+                onClick={() => {
+                  onUpdateSettings({ taskbarOffset: 280 });
+                  if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+                    import('@tauri-apps/api/core').then(({ invoke }) => {
+                      invoke('set_taskbar_offset_command', { offset: 280 }).catch(() => {});
+                    });
+                  }
+                }}
+                style={{
+                  background: (settings.taskbarOffset || 260) === 280 ? '#0284c7' : '#f1f5f9',
+                  color: (settings.taskbarOffset || 260) === 280 ? '#ffffff' : '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Standar PC (280px)
+              </button>
+              <button
+                onClick={() => {
+                  onUpdateSettings({ taskbarOffset: 410 });
+                  if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+                    import('@tauri-apps/api/core').then(({ invoke }) => {
+                      invoke('set_taskbar_offset_command', { offset: 410 }).catch(() => {});
+                    });
+                  }
+                }}
+                style={{
+                  background: (settings.taskbarOffset || 260) === 410 ? '#0284c7' : '#f1f5f9',
+                  color: (settings.taskbarOffset || 260) === 410 ? '#ffffff' : '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Lebar / Banyak Ikon (410px)
+              </button>
+            </div>
+          </div>
+
           <div className="setting-row">
             <div className="setting-info">
               <h4>Reset Widget Position</h4>
