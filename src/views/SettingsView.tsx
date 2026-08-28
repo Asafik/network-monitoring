@@ -249,14 +249,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
             <select
               className="input-field"
-              value={settings.speedWidgetStyle || 'classic'}
+              value={settings.speedWidgetStyle || 'transparent'}
               onChange={(e) =>
                 onUpdateSettings({ speedWidgetStyle: e.target.value as any })
               }
-              style={{ width: '160px' }}
+              style={{ width: '190px' }}
             >
-              <option value="classic">Solid Dark (High Contrast)</option>
-              <option value="glass">Glassmorphism (Blur)</option>
+              <option value="transparent">Transparan (Menyatu Taskbar)</option>
+              <option value="classic">Solid Dark (Kotak Gelap)</option>
+              <option value="glass">Glassmorphism (Aksen Biru)</option>
             </select>
           </div>
 
@@ -372,20 +373,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
             <button
               onClick={() => {
-                const initialX = Math.max(window.innerWidth - 150, 40);
-                const initialY = Math.max(window.innerHeight - 80, 40);
-                localStorage.setItem('netpulse_widget_pos', JSON.stringify({ x: initialX, y: initialY }));
-                window.location.reload();
+                if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+                  import('@tauri-apps/api/core').then(({ invoke }) => {
+                    invoke('snap_widget_to_taskbar_command').catch(() => {});
+                  });
+                }
               }}
               style={{
-                background: '#f1f5f9',
-                border: '1px solid #cbd5e1',
+                background: '#0284c7',
+                border: 'none',
                 borderRadius: '6px',
                 padding: '6px 14px',
                 fontSize: '12px',
                 fontWeight: 700,
-                color: '#0f172a',
+                color: '#ffffff',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               Dock to Taskbar

@@ -234,6 +234,8 @@ impl Database {
                 blocked_at INTEGER NOT NULL
             );
 
+            DROP TABLE IF EXISTS app_bandwidth_limits;
+
             CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics_history(timestamp);
             ",
         )?;

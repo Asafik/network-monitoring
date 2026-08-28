@@ -249,8 +249,10 @@ fn toggle_widget_window_command(app: tauri::AppHandle, show: Option<bool>) -> Re
     if let Some(widget) = app.get_webview_window("widget") {
         let is_vis = widget.is_visible().unwrap_or(false);
         let target = show.unwrap_or(!is_vis);
+        taskbar_dock::set_widget_enabled(target);
         if target {
             let _ = widget.show();
+            let _ = snap_widget_to_taskbar_command(app);
         } else {
             let _ = widget.hide();
         }
@@ -293,8 +295,9 @@ fn ping_target(state: State<AppState>, host: String) -> Result<Option<f64>, Stri
 }
 
 #[tauri::command]
-fn set_taskbar_offset_command(offset: i32) -> Result<i32, String> {
+fn set_taskbar_offset_command(app: tauri::AppHandle, offset: i32) -> Result<i32, String> {
     taskbar_dock::set_taskbar_offset(offset);
+    let _ = snap_widget_to_taskbar_command(app);
     Ok(taskbar_dock::get_taskbar_offset())
 }
 
@@ -491,11 +494,13 @@ pub fn run() {
                     }
 
                     // Keep widget dynamically docked and persistently topmost on the taskbar
-                    if let Some(widget) = app_handle.get_webview_window("widget") {
-                        let (x, y) = taskbar_dock::get_taskbar_dock_position(125, 38);
-                        let _ = widget.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
-                        if let Ok(hwnd) = widget.hwnd() {
-                            taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+                    if taskbar_dock::is_widget_enabled() {
+                        if let Some(widget) = app_handle.get_webview_window("widget") {
+                            let (x, y) = taskbar_dock::get_taskbar_dock_position(125, 38);
+                            let _ = widget.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                            if let Ok(hwnd) = widget.hwnd() {
+                                taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+                            }
                         }
                     }
 
@@ -518,9 +523,11 @@ pub fn run() {
             let widget_keeper_handle = app.handle().clone();
             std::thread::spawn(move || {
                 loop {
-                    if let Some(widget) = widget_keeper_handle.get_webview_window("widget") {
-                        if let Ok(hwnd) = widget.hwnd() {
-                            taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+                    if taskbar_dock::is_widget_enabled() {
+                        if let Some(widget) = widget_keeper_handle.get_webview_window("widget") {
+                            if let Ok(hwnd) = widget.hwnd() {
+                                taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+                            }
                         }
                     }
                     std::thread::sleep(Duration::from_millis(50));

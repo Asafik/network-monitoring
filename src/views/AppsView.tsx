@@ -4,6 +4,7 @@ import {
   IconDownload,
   IconActivity,
   IconCheckCircle,
+  IconShield,
 } from '../components/Icons';
 import { AppIcon } from '../components/AppIcon';
 import { AppBandwidthItem } from '../types/network';
@@ -49,9 +50,6 @@ export const AppsView: React.FC<AppsViewProps> = ({
   onUnblockApp,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [customAppName, setCustomAppName] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'installed' | 'all' | 'blocked'>('installed');
-  const [sortBy, setSortBy] = useState<'download' | 'upload' | 'total' | 'connections'>('download');
   const [loadingAppMap, setLoadingAppMap] = useState<{ [key: string]: boolean }>({});
   const [actionFeedback, setActionFeedback] = useState<{ message: string; type: 'success' | 'error' | 'loading' } | null>(null);
 
@@ -80,7 +78,7 @@ export const AppsView: React.FC<AppsViewProps> = ({
     return blockedApps.some((b) => b.toLowerCase().includes(clean) || clean.includes(b.toLowerCase()));
   };
 
-  // Block handler with loading overlay
+  // Block handler with feedback
   const handleBlock = async (appName: string) => {
     const clean = getCleanName(appName);
     if (isSystemProcess(clean)) {
@@ -89,32 +87,32 @@ export const AppsView: React.FC<AppsViewProps> = ({
       return;
     }
     setLoadingAppMap((prev) => ({ ...prev, [clean]: true }));
-    setActionFeedback({ message: `Applying Windows Firewall block rule for ${clean}...`, type: 'loading' });
+    setActionFeedback({ message: `Menerapkan pemutusan koneksi internet untuk ${clean}...`, type: 'loading' });
     try {
       if (onBlockApp) {
         const msg = await onBlockApp(clean);
-        setActionFeedback({ message: msg || `Internet access for ${clean} blocked!`, type: 'success' });
+        setActionFeedback({ message: msg || `Akses internet untuk ${clean} berhasil diblokir!`, type: 'success' });
       }
     } catch {
-      setActionFeedback({ message: `Failed to block ${clean}`, type: 'error' });
+      setActionFeedback({ message: `Gagal memblokir ${clean}`, type: 'error' });
     } finally {
       setLoadingAppMap((prev) => ({ ...prev, [clean]: false }));
       setTimeout(() => setActionFeedback(null), 3500);
     }
   };
 
-  // Unblock handler with loading overlay
+  // Unblock handler with feedback
   const handleUnblock = async (appName: string) => {
     const clean = getCleanName(appName);
     setLoadingAppMap((prev) => ({ ...prev, [clean]: true }));
-    setActionFeedback({ message: `Removing Windows Firewall rule for ${clean}...`, type: 'loading' });
+    setActionFeedback({ message: `Memulihkan koneksi internet untuk ${clean}...`, type: 'loading' });
     try {
       if (onUnblockApp) {
         const msg = await onUnblockApp(clean);
-        setActionFeedback({ message: msg || `Internet connection for ${clean} restored!`, type: 'success' });
+        setActionFeedback({ message: msg || `Koneksi internet untuk ${clean} telah dipulihkan!`, type: 'success' });
       }
     } catch {
-      setActionFeedback({ message: `Failed to unblock ${clean}`, type: 'error' });
+      setActionFeedback({ message: `Gagal memulihkan ${clean}`, type: 'error' });
     } finally {
       setLoadingAppMap((prev) => ({ ...prev, [clean]: false }));
       setTimeout(() => setActionFeedback(null), 3500);
@@ -142,37 +140,27 @@ export const AppsView: React.FC<AppsViewProps> = ({
 
   // Filtered & Sorted Apps
   const processedApps = useMemo(() => {
-    let list = combinedList.filter((app) =>
-      app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.pid.toString().includes(searchTerm)
-    );
+    return combinedList
+      .filter((app) =>
+        app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        app.pid.toString().includes(searchTerm)
+      )
+      .sort((a, b) => {
+        // Prioritize blocked items at the top
+        const aBlocked = isAppBlocked(a.name);
+        const bBlocked = isAppBlocked(b.name);
+        if (aBlocked && !bBlocked) return -1;
+        if (!aBlocked && bBlocked) return 1;
 
-    if (activeCategory === 'installed') {
-      list = list.filter((app) => !isSystemProcess(app.name));
-    } else if (activeCategory === 'blocked') {
-      list = list.filter((app) => isAppBlocked(app.name));
-    }
-
-    return list.sort((a, b) => {
-      // Prioritize blocked items at the top
-      const aBlocked = isAppBlocked(a.name);
-      const bBlocked = isAppBlocked(b.name);
-      if (aBlocked && !bBlocked) return -1;
-      if (!aBlocked && bBlocked) return 1;
-
-      if (sortBy === 'download') return b.downloadBps - a.downloadBps;
-      if (sortBy === 'upload') return b.uploadBps - a.uploadBps;
-      if (sortBy === 'total') return (b.totalDownloadMb + b.totalUploadMb) - (a.totalDownloadMb + a.totalUploadMb);
-      if (sortBy === 'connections') return b.activeConnections - a.activeConnections;
-      return 0;
-    });
-  }, [combinedList, searchTerm, activeCategory, sortBy, blockedApps]);
+        // Default sort by total bandwidth
+        return (b.downloadBps + b.uploadBps) - (a.downloadBps + a.uploadBps);
+      });
+  }, [combinedList, searchTerm, blockedApps]);
 
   // Overall Totals
   const totalDlBps = rawList.reduce((acc, a) => acc + a.downloadBps, 0);
   const totalActiveApps = rawList.filter((a) => a.downloadBps > 0 || a.uploadBps > 0).length;
   const topApp = rawList.slice().sort((a, b) => (b.downloadBps + b.uploadBps) - (a.downloadBps + a.uploadBps))[0];
-
   const blockedCount = blockedApps.length;
 
   return (
@@ -182,21 +170,16 @@ export const AppsView: React.FC<AppsViewProps> = ({
         <div
           style={{
             position: 'fixed',
-            top: '20px',
+            bottom: '24px',
             right: '24px',
             zIndex: 9999,
+            background: actionFeedback.type === 'error' ? '#ef4444' : actionFeedback.type === 'loading' ? '#0284c7' : '#10b981',
+            color: '#ffffff',
+            padding: '12px 20px',
+            borderRadius: '10px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            padding: '12px 20px',
-            borderRadius: '10px',
-            background:
-              actionFeedback.type === 'success'
-                ? '#059669'
-                : actionFeedback.type === 'loading'
-                ? '#0284c7'
-                : '#dc2626',
-            color: '#ffffff',
             fontWeight: 700,
             fontSize: '13px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
@@ -269,206 +252,65 @@ export const AppsView: React.FC<AppsViewProps> = ({
           <span className="card-subtext">All processes combined</span>
         </div>
 
-        {/* Blocked Apps Status Card */}
+        {/* Firewall Block Status */}
         <div className="glass-card" style={{ background: blockedCount > 0 ? 'rgba(239, 68, 68, 0.04)' : '#ffffff' }}>
           <div className="card-top">
-            <span className="card-label">Cut Off Apps (Firewall)</span>
-            <div className="card-icon-wrapper" style={{ color: blockedCount > 0 ? '#dc2626' : '#059669' }}>
-              <IconActivity size={18} />
+            <span className="card-label">Firewall Kill Switch</span>
+            <div className="card-icon-wrapper" style={{ color: blockedCount > 0 ? '#ef4444' : '#059669' }}>
+              <IconShield size={18} />
             </div>
           </div>
           <div className="card-value-group">
             <span className="card-big-value" style={{ color: blockedCount > 0 ? '#dc2626' : '#059669' }}>
               {blockedCount}
             </span>
-            <span className="card-unit">apps blocked</span>
+            <span className="card-unit">app(s) cut off</span>
           </div>
-          <span className="card-subtext" style={{ color: blockedCount > 0 ? '#dc2626' : '#64748b', fontWeight: blockedCount > 0 ? 700 : 400 }}>
-            {blockedCount > 0 ? 'Internet access blocked' : 'All applications connected'}
+          <span className="card-subtext" style={{ color: '#64748b', fontWeight: 500 }}>
+            {blockedCount > 0 ? `${blockedCount} application(s) internet blocked` : 'All applications allowed'}
           </span>
         </div>
       </div>
 
-      {/* 2. MAIN APPLICATION MONITOR TABLE & CONTROLS */}
-      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px' }}>
-        {/* Title & Category Tabs Toolbar */}
+      {/* 2. UNIFIED APPLICATION MONITOR & KILL SWITCH TABLE */}
+      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px' }}>
+        {/* Header with Title & Search Bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <IconGrid size={18} color="#0284c7" />
               <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
-                Application Bandwidth & Internet Kill Switch
+                Application Bandwidth Monitor & Internet Kill Switch
               </h2>
             </div>
             <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-              Block or restore network connectivity for user applications instantly (Windows Firewall Kill Switch)
+              Pantau pemakaian bandwidth per-proses secara real-time dan putus akses internet aplikasi tertentu secara instan
             </p>
           </div>
 
-          {/* Quick Manual Kill Switch Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(220, 38, 38, 0.2)' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#dc2626' }}>🎯 Quick Block:</span>
-            <input
-              type="text"
-              value={customAppName}
-              onChange={(e) => setCustomAppName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && customAppName.trim()) {
-                  handleBlock(customAppName.trim());
-                  setCustomAppName('');
-                }
-              }}
-              placeholder="e.g. AngryBirds2.exe, Game.exe"
-              style={{
-                background: '#ffffff',
-                border: '1px solid var(--border-color)',
-                borderRadius: '6px',
-                padding: '5px 10px',
-                fontSize: '12px',
-                color: '#0f172a',
-                outline: 'none',
-                width: '180px',
-              }}
-            />
-            <button
-              onClick={() => {
-                if (customAppName.trim() && !loadingAppMap[getCleanName(customAppName)]) {
-                  handleBlock(customAppName.trim());
-                  setCustomAppName('');
-                }
-              }}
-              disabled={!customAppName.trim() || loadingAppMap[getCleanName(customAppName)]}
-              style={{
-                background: !customAppName.trim() ? '#cbd5e1' : loadingAppMap[getCleanName(customAppName)] ? '#f87171' : '#dc2626',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: customAppName.trim() && !loadingAppMap[getCleanName(customAppName)] ? 'pointer' : 'not-allowed',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              {loadingAppMap[getCleanName(customAppName)] ? (
-                <>
-                  <svg className="spin-anim" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
-                    <circle cx="12" cy="12" r="9" strokeDasharray="36" strokeDashoffset="14" strokeLinecap="round" />
-                  </svg>
-                  <span>Blocking...</span>
-                </>
-              ) : (
-                <span>⛔ Block Now</span>
-              )}
-            </button>
-          </div>
-
-          {/* Search Input & Category Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Clean Search Input */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search app name / PID..."
+              placeholder="Cari aplikasi / PID..."
               style={{
                 background: '#f8fafc',
                 border: '1px solid var(--border-color)',
                 borderRadius: '8px',
-                padding: '7px 14px',
-                fontSize: '12px',
+                padding: '8px 16px',
+                fontSize: '13px',
                 color: '#0f172a',
                 outline: 'none',
-                width: '190px',
+                width: '240px',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.03)',
               }}
             />
-
-            {/* Category Filter Tabs */}
-            <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
-              <button
-                onClick={() => setActiveCategory('installed')}
-                style={{
-                  background: activeCategory === 'installed' ? '#0284c7' : 'transparent',
-                  color: activeCategory === 'installed' ? '#ffffff' : '#64748b',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '5px 12px',
-                  fontSize: '12px',
-                  fontWeight: activeCategory === 'installed' ? 700 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                Installed Apps
-              </button>
-
-              <button
-                onClick={() => setActiveCategory('all')}
-                style={{
-                  background: activeCategory === 'all' ? '#0284c7' : 'transparent',
-                  color: activeCategory === 'all' ? '#ffffff' : '#64748b',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '5px 12px',
-                  fontSize: '12px',
-                  fontWeight: activeCategory === 'all' ? 700 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                All Processes ({rawList.length})
-              </button>
-
-              <button
-                onClick={() => setActiveCategory('blocked')}
-                style={{
-                  background: activeCategory === 'blocked' ? '#dc2626' : 'transparent',
-                  color: activeCategory === 'blocked' ? '#ffffff' : '#64748b',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '5px 12px',
-                  fontSize: '12px',
-                  fontWeight: activeCategory === 'blocked' ? 700 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                Blocked ({blockedCount})
-              </button>
-            </div>
-
-            {/* Sort Selector */}
-            <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
-              {[
-                { id: 'download', label: 'Download' },
-                { id: 'upload', label: 'Upload' },
-                { id: 'total', label: 'Total MB' },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSortBy(s.id as any)}
-                  style={{
-                    background: sortBy === s.id ? '#0f172a' : 'transparent',
-                    color: sortBy === s.id ? '#ffffff' : '#64748b',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '5px 10px',
-                    fontSize: '11px',
-                    fontWeight: sortBy === s.id ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
-        {/* Process Table with Cut / Block Action */}
+        {/* Clean Process Table */}
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
@@ -486,9 +328,7 @@ export const AppsView: React.FC<AppsViewProps> = ({
               {processedApps.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '34px', color: '#64748b' }}>
-                    {activeCategory === 'blocked'
-                      ? 'No applications currently blocked from the internet.'
-                      : `No applications found matching "${searchTerm}"`}
+                    {searchTerm ? `Tidak ada aplikasi yang cocok dengan "${searchTerm}"` : 'Tidak ada aplikasi aktif yang terdeteksi'}
                   </td>
                 </tr>
               ) : (
@@ -500,7 +340,7 @@ export const AppsView: React.FC<AppsViewProps> = ({
 
                   return (
                     <tr
-                      key={app.pid}
+                      key={app.pid || app.name}
                       style={{
                         borderBottom: '1px solid rgba(15, 23, 42, 0.04)',
                         background: isBlocked
@@ -509,144 +349,107 @@ export const AppsView: React.FC<AppsViewProps> = ({
                         transition: 'background 0.15s ease',
                       }}
                     >
-                      {/* App Name with Icon */}
-                      <td style={{ padding: '10px 14px' }}>
+                      {/* App Icon + Name */}
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: '#0f172a' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <AppIcon name={app.name} size={28} />
+                          <AppIcon name={app.name} size={22} />
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 700, color: isBlocked ? '#dc2626' : '#0f172a' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {app.name}
-                            </span>
-                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                              {isSys ? 'Windows Core System' : 'User Installed Program'}
+                              {isSys && (
+                                <span style={{ fontSize: '10px', background: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: '4px' }}>
+                                  System
+                                </span>
+                              )}
+                              {isBlocked && (
+                                <span style={{ fontSize: '10px', background: '#fee2e2', color: '#dc2626', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
+                                  Blocked
+                                </span>
+                              )}
                             </span>
                           </div>
                         </div>
                       </td>
 
-                      <td className="mono-text" style={{ padding: '10px 14px', color: '#64748b' }}>
-                        {app.pid}
+                      {/* PID */}
+                      <td style={{ padding: '12px 14px', color: '#64748b', fontFamily: 'monospace' }}>
+                        {app.pid > 0 ? app.pid : '--'}
                       </td>
 
-                      <td className="mono-text" style={{ padding: '10px 14px', fontWeight: 700, color: isBlocked ? '#94a3b8' : '#0284c7' }}>
-                        {isBlocked ? '0 B/s' : `${dlFmt.value} ${dlFmt.unit}`}
+                      {/* Download Speed */}
+                      <td style={{ padding: '12px 14px', fontWeight: 700, color: app.downloadBps > 0 ? '#0284c7' : '#94a3b8' }}>
+                        {dlFmt.value} {dlFmt.unit}
                       </td>
 
-                      <td className="mono-text" style={{ padding: '10px 14px', fontWeight: 700, color: isBlocked ? '#94a3b8' : '#7c3aed' }}>
-                        {isBlocked ? '0 B/s' : `${ulFmt.value} ${ulFmt.unit}`}
+                      {/* Upload Speed */}
+                      <td style={{ padding: '12px 14px', fontWeight: 700, color: app.uploadBps > 0 ? '#8b5cf6' : '#94a3b8' }}>
+                        {ulFmt.value} {ulFmt.unit}
                       </td>
 
-                      <td className="mono-text" style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>
-                        {app.totalDownloadMb.toFixed(1)} MB
+                      {/* Total Data */}
+                      <td style={{ padding: '12px 14px', color: '#475569', fontWeight: 600 }}>
+                        {(app.totalDownloadMb + app.totalUploadMb).toFixed(1)} MB
                       </td>
 
-                      <td className="mono-text" style={{ padding: '10px 14px', color: '#475569' }}>
-                        {isBlocked ? '0 sockets' : `${app.activeConnections} sockets`}
+                      {/* Sockets */}
+                      <td style={{ padding: '12px 14px', color: '#64748b' }}>
+                        {app.activeConnections > 0 ? `${app.activeConnections} sockets` : '--'}
                       </td>
 
-                      {/* ACTION: CUT / RESTORE INTERNET CONTROL */}
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      {/* Block / Unblock Action Button */}
+                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         {isSys ? (
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              padding: '5px 12px',
-                              borderRadius: '6px',
-                              background: '#f1f5f9',
-                              color: '#64748b',
-                              display: 'inline-block',
-                            }}
-                            title="This core system process is protected and cannot be blocked"
-                          >
-                            System Protected
+                          <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                            Protected System
                           </span>
                         ) : isBlocked ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                            <span
-                              style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                background: 'rgba(239, 68, 68, 0.15)',
-                                color: '#dc2626',
-                              }}
-                            >
-                              Blocked
-                            </span>
-                            <button
-                              onClick={() => handleUnblock(app.name)}
-                              disabled={loadingAppMap[getCleanName(app.name)]}
-                              style={{
-                                background: loadingAppMap[getCleanName(app.name)] ? '#6ee7b7' : '#059669',
-                                color: '#ffffff',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '6px 14px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                cursor: loadingAppMap[getCleanName(app.name)] ? 'wait' : 'pointer',
-                                boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
-                                transition: 'all 0.15s ease',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                              }}
-                            >
-                              {loadingAppMap[getCleanName(app.name)] ? (
-                                <>
-                                  <svg className="spin-anim" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
-                                    <circle cx="12" cy="12" r="9" strokeDasharray="36" strokeDashoffset="14" strokeLinecap="round" />
-                                  </svg>
-                                  <span>Restoring...</span>
-                                </>
-                              ) : (
-                                <span>Restore Access</span>
-                              )}
-                            </button>
-                          </div>
-                        ) : (
                           <button
-                            onClick={() => handleBlock(app.name)}
+                            onClick={() => handleUnblock(app.name)}
                             disabled={loadingAppMap[getCleanName(app.name)]}
                             style={{
-                              background: loadingAppMap[getCleanName(app.name)] ? '#fee2e2' : '#ffffff',
-                              color: '#dc2626',
-                              border: '1px solid rgba(220, 38, 38, 0.35)',
+                              background: '#10b981',
+                              color: '#ffffff',
+                              border: 'none',
                               borderRadius: '6px',
                               padding: '6px 14px',
                               fontSize: '11px',
                               fontWeight: 700,
-                              cursor: loadingAppMap[getCleanName(app.name)] ? 'wait' : 'pointer',
+                              cursor: 'pointer',
                               transition: 'all 0.15s ease',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '6px',
                             }}
-                            onMouseEnter={(e) => {
-                              if (!loadingAppMap[getCleanName(app.name)]) {
-                                e.currentTarget.style.background = '#dc2626';
-                                e.currentTarget.style.color = '#ffffff';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!loadingAppMap[getCleanName(app.name)]) {
-                                e.currentTarget.style.background = '#ffffff';
-                                e.currentTarget.style.color = '#dc2626';
-                              }
-                            }}
-                            title="Block all internet and outbound traffic for this application (Windows Firewall)"
                           >
                             {loadingAppMap[getCleanName(app.name)] ? (
-                              <>
-                                <svg className="spin-anim" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="3">
-                                  <circle cx="12" cy="12" r="9" strokeDasharray="36" strokeDashoffset="14" strokeLinecap="round" />
-                                </svg>
-                                <span>Blocking...</span>
-                              </>
+                              <span>Restoring...</span>
                             ) : (
-                              <span>Block Internet</span>
+                              <span>✅ Pulihkan Internet</span>
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleBlock(app.name)}
+                            disabled={loadingAppMap[getCleanName(app.name)]}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.08)',
+                              color: '#dc2626',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
+                              borderRadius: '6px',
+                              padding: '6px 14px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {loadingAppMap[getCleanName(app.name)] ? (
+                              <span>Blocking...</span>
+                            ) : (
+                              <span>⛔ Putus Internet</span>
                             )}
                           </button>
                         )}

@@ -55,7 +55,7 @@ export const StandaloneWidget: React.FC = () => {
   });
 
   const [showMenu, setShowMenu] = useState(false);
-  const [bgStyle, setBgStyle] = useState<'transparent' | 'dark'>('transparent');
+  const [bgStyle, setBgStyle] = useState<'transparent' | 'dark' | 'glass'>('transparent');
 
   useEffect(() => {
     // Make root document and body completely transparent for seamless Windows taskbar integration
@@ -66,7 +66,39 @@ export const StandaloneWidget: React.FC = () => {
       typeof window !== 'undefined' &&
       ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
 
+    const updateStyleFromStr = (val: string) => {
+      if (val === 'glass') {
+        setBgStyle('glass');
+      } else if (val === 'classic' || val === 'dark') {
+        setBgStyle('dark');
+      } else {
+        setBgStyle('transparent');
+      }
+    };
+
+    // Load initial preference
+    try {
+      const saved = localStorage.getItem('netpulse_settings');
+      if (saved) {
+        const s = JSON.parse(saved);
+        if (s.speedWidgetStyle) updateStyleFromStr(s.speedWidgetStyle);
+      }
+    } catch {}
+
+    // Listen for storage events (fired across webviews in same app)
+    const handleStorage = () => {
+      try {
+        const saved = localStorage.getItem('netpulse_settings');
+        if (saved) {
+          const s = JSON.parse(saved);
+          if (s.speedWidgetStyle) updateStyleFromStr(s.speedWidgetStyle);
+        }
+      } catch {}
+    };
+    window.addEventListener('storage', handleStorage);
+
     let unlisten: (() => void) | undefined;
+    let unlistenStyle: (() => void) | undefined;
 
     if (isTauriEnv) {
       listen<any>('network-metrics', (event) => {
@@ -76,6 +108,14 @@ export const StandaloneWidget: React.FC = () => {
         }
       }).then((fn) => {
         unlisten = fn;
+      });
+
+      listen<string>('speed_widget_style_change', (event) => {
+        if (event.payload) {
+          updateStyleFromStr(event.payload);
+        }
+      }).then((fn) => {
+        unlistenStyle = fn;
       });
     }
 
@@ -96,7 +136,9 @@ export const StandaloneWidget: React.FC = () => {
     const interval = setInterval(pollMetrics, 500);
 
     return () => {
+      window.removeEventListener('storage', handleStorage);
       if (unlisten) unlisten();
+      if (unlistenStyle) unlistenStyle();
       clearInterval(interval);
     };
   }, []);
@@ -136,8 +178,12 @@ export const StandaloneWidget: React.FC = () => {
         height: '100vh',
         boxSizing: 'border-box',
         background:
-          bgStyle === 'transparent' ? 'transparent' : 'rgba(15, 23, 42, 0.92)',
-        borderRadius: '4px',
+          bgStyle === 'transparent'
+            ? 'transparent'
+            : bgStyle === 'glass'
+            ? 'rgba(15, 23, 42, 0.85)'
+            : '#090d16',
+        borderRadius: bgStyle === 'transparent' ? '0px' : '5px',
         padding: '1px 5px',
         display: 'flex',
         flexDirection: 'column',
@@ -151,7 +197,15 @@ export const StandaloneWidget: React.FC = () => {
         border:
           bgStyle === 'transparent'
             ? 'none'
-            : '1px solid rgba(255, 255, 255, 0.1)',
+            : bgStyle === 'glass'
+            ? '1px solid rgba(14, 165, 233, 0.65)'
+            : '1px solid #334155',
+        boxShadow:
+          bgStyle === 'transparent'
+            ? 'none'
+            : bgStyle === 'glass'
+            ? '0 0 10px rgba(14, 165, 233, 0.35)'
+            : '0 2px 6px rgba(0,0,0,0.6)',
       }}
     >
       {/* ROW 1: UPLOAD (TrafficMonitor Balanced Style: Orange Arrow ↑: + Speed) */}

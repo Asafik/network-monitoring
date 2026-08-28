@@ -9,8 +9,6 @@ import { AppsView } from './views/AppsView';
 import { AdaptersView } from './views/AdaptersView';
 import { HistoryView } from './views/HistoryView';
 import { SettingsView } from './views/SettingsView';
-import { StartupScannerOverlay } from './components/StartupScannerOverlay';
-import { IconRefresh, IconActivity } from './components/Icons';
 import {
   NetworkMetrics,
   NetworkAdapter,
@@ -36,7 +34,6 @@ import './App.css';
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isNativeTauri, setIsNativeTauri] = useState(true);
   const [availableNetworks, setAvailableNetworks] = useState<WifiNetworkItem[]>([]);
   const [isScanningNetworks, setIsScanningNetworks] = useState(false);
@@ -47,7 +44,6 @@ export function App() {
   const [speedTests, setSpeedTests] = useState<SpeedTestResult[]>([]);
   const [sessions, setSessions] = useState<NetworkSessionRecord[]>([]);
   const [appBandwidthList, setAppBandwidthList] = useState<AppBandwidthItem[]>([]);
-  const [showScannerOverlay, setShowScannerOverlay] = useState(true);
 
   // Live Metrics State
   const [metrics, setMetrics] = useState<NetworkMetrics>({
@@ -122,6 +118,9 @@ export function App() {
       setSettings((s) => ({ ...s, showSpeedWidget: next }));
       try {
         invoke('toggle_widget_window_command', { show: next }).catch(() => {});
+        if (next) {
+          invoke('snap_widget_to_taskbar_command').catch(() => {});
+        }
       } catch {}
       return next;
     });
@@ -377,13 +376,6 @@ export function App() {
       };
     }
   }, [scanWifiNetworks, refreshAllData]);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    scanWifiNetworks();
-    refreshAllData();
-    setTimeout(() => setIsRefreshing(false), 800);
-  };
 
   const handleSelectLatencyRange = (range: string) => {
     if (isNativeTauri) {
@@ -644,6 +636,7 @@ export function App() {
     }
   };
 
+
   const handleUpdateSettings = (newSettings: Partial<AppSettings>) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
@@ -661,6 +654,29 @@ export function App() {
           method: 'POST',
           body: `enabled=${newSettings.startWithWindows}`,
         }).catch(() => {});
+      }
+    }
+
+    if (newSettings.showSpeedWidget !== undefined) {
+      if (isNativeTauri) {
+        invoke('toggle_widget_window_command', { show: newSettings.showSpeedWidget }).catch(() => {});
+        if (newSettings.showSpeedWidget) {
+          invoke('snap_widget_to_taskbar_command').catch(() => {});
+        }
+      }
+    }
+
+    if (newSettings.taskbarOffset !== undefined) {
+      if (isNativeTauri) {
+        invoke('set_taskbar_offset_command', { offset: newSettings.taskbarOffset }).catch(() => {});
+      }
+    }
+
+    if (newSettings.speedWidgetStyle !== undefined) {
+      if (isNativeTauri) {
+        import('@tauri-apps/api/event').then(({ emit }) => {
+          emit('speed_widget_style_change', newSettings.speedWidgetStyle).catch(() => {});
+        });
       }
     }
   };
@@ -700,14 +716,6 @@ export function App() {
 
   return (
     <div className="app-container">
-      {/* Startup Device Scanner Loading Overlay */}
-      {showScannerOverlay && (
-        <StartupScannerOverlay
-          metrics={metrics}
-          onComplete={() => setShowScannerOverlay(false)}
-        />
-      )}
-
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
@@ -722,86 +730,6 @@ export function App() {
           <div className="header-title-group">
             <h1 className="header-title">{titles[currentTab].title}</h1>
             <span className="header-subtitle">{titles[currentTab].subtitle}</span>
-          </div>
-
-          <div className="header-actions">
-            {/* Taskbar Speed Meter Quick Toggle Button */}
-            <button
-              onClick={handleToggleSpeedWidget}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: showSpeedWidget ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-color)',
-                background: showSpeedWidget ? 'rgba(245, 158, 11, 0.1)' : '#f8fafc',
-                color: showSpeedWidget ? '#d97706' : '#64748b',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title={showSpeedWidget ? 'Hide Taskbar Speed Meter' : 'Show Taskbar Speed Meter'}
-            >
-              <IconActivity size={14} color={showSpeedWidget ? '#d97706' : '#64748b'} />
-              <span>{showSpeedWidget ? 'Taskbar Meter: ON' : 'Taskbar Meter: OFF'}</span>
-            </button>
-
-            {/* Buka Web Monitor Button */}
-            <button
-              onClick={async () => {
-                if (isNativeTauri) {
-                  try {
-                    await invoke('open_web_browser_command');
-                  } catch {
-                    window.open('http://localhost:9090', '_blank');
-                  }
-                } else {
-                  window.open('http://localhost:9090', '_blank');
-                }
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(2, 132, 199, 0.3)',
-                background: 'rgba(2, 132, 199, 0.08)',
-                color: '#0284c7',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title="Buka Web Dashboard di Browser (Chrome / Edge / HP)"
-            >
-              <span>Buka Web Monitor</span>
-            </button>
-
-            {!isNativeTauri && (
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  background: 'rgba(2, 132, 199, 0.1)',
-                  color: '#0284c7',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(2, 132, 199, 0.2)',
-                }}
-              >
-                Browser Mode
-              </span>
-            )}
-            <button
-              className={`btn-icon ${isRefreshing ? 'spinning' : ''}`}
-              onClick={handleRefresh}
-              title="Refresh Stats"
-            >
-              <IconRefresh size={16} />
-            </button>
           </div>
         </header>
 
