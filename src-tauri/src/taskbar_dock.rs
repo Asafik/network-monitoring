@@ -34,6 +34,7 @@ extern "system" {
         uFlags: u32,
     ) -> i32;
     fn SetWindowDisplayAffinity(hWnd: isize, dwAffinity: u32) -> i32;
+    fn GetForegroundWindow() -> isize;
 }
 
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
@@ -60,8 +61,51 @@ pub fn get_taskbar_offset() -> i32 {
 const SM_CXSCREEN: i32 = 0;
 const SM_CYSCREEN: i32 = 1;
 
+/// Detect if the user is currently playing a Fullscreen Game or using a Fullscreen App
+pub fn is_fullscreen_app_active(widget_hwnd: isize) -> bool {
+    unsafe {
+        let fg = GetForegroundWindow();
+        if fg == 0 || fg == widget_hwnd {
+            return false;
+        }
+
+        // Check if foreground window is the taskbar itself
+        let tray_class: Vec<u16> = "Shell_TrayWnd\0".encode_utf16().collect();
+        let tray_hwnd = FindWindowW(tray_class.as_ptr(), std::ptr::null());
+        if fg == tray_hwnd {
+            return false;
+        }
+
+        // Check if foreground window is Windows Desktop (Progman or WorkerW)
+        let progman_class: Vec<u16> = "Progman\0".encode_utf16().collect();
+        let progman_hwnd = FindWindowW(progman_class.as_ptr(), std::ptr::null());
+        if fg == progman_hwnd {
+            return false;
+        }
+
+        let workerw_class: Vec<u16> = "WorkerW\0".encode_utf16().collect();
+        let workerw_hwnd = FindWindowW(workerw_class.as_ptr(), std::ptr::null());
+        if fg == workerw_hwnd {
+            return false;
+        }
+
+        let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        GetWindowRect(fg, &mut rect);
+
+        let screen_w = GetSystemMetrics(SM_CXSCREEN);
+        let screen_h = GetSystemMetrics(SM_CYSCREEN);
+
+        // A fullscreen game/app covers 0,0 to screen_w, screen_h
+        if rect.left <= 0 && rect.top <= 0 && rect.right >= screen_w && rect.bottom >= screen_h {
+            return true;
+        }
+
+        false
+    }
+}
+
 pub fn make_taskbar_persistent(hwnd: isize) {
-    if hwnd == 0 || !is_widget_enabled() {
+    if hwnd == 0 || !is_widget_enabled() || is_fullscreen_app_active(hwnd) {
         return;
     }
     unsafe {

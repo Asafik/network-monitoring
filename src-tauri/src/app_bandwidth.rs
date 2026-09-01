@@ -47,8 +47,8 @@ fn get_active_connections_map() -> HashMap<u32, u32> {
 }
 
 pub fn get_per_app_bandwidth() -> Vec<AppBandwidthItem> {
-    let mut sys = System::new_all();
-    sys.refresh_all();
+    let mut sys = System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
     let connections_map = get_active_connections_map();
 

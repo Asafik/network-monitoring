@@ -236,21 +236,39 @@ impl NetworkMonitor {
 
         let ping_spikes = pings.iter().filter(|&&p| p > 75.0).count() as u32;
 
-        // Determine connection details (Wi-Fi vs Ethernet)
-        let connection_details = if let Some(wifi_info) = get_active_wifi_details() {
-            wifi_info
-        } else {
-            let is_ethernet_active = active_adapter_name.to_lowercase().contains("ethernet") || active_adapter_name.to_lowercase().contains("lan");
-            ActiveConnectionDetails {
-                connection_type: if is_ethernet_active { "ethernet".to_string() } else { "none".to_string() },
-                ssid: None,
-                signal_percent: if is_ethernet_active { Some(100) } else { None },
-                radio_type: if is_ethernet_active { Some("Gigabit Ethernet (802.3)".to_string()) } else { None },
-                channel: None,
-                authentication: if is_ethernet_active { Some("Direct Wired (No Password)".to_string()) } else { None },
-                link_speed_mbps: if is_ethernet_active { Some(1000) } else { None },
-                bssid: None,
-                is_wired: is_ethernet_active,
+        // Determine connection details (Wi-Fi vs Ethernet) with 10s caching to eliminate CPU overhead
+        let connection_details = {
+            static CACHED_WIFI: Mutex<Option<(i64, ActiveConnectionDetails)>> = Mutex::new(None);
+            let mut cache = CACHED_WIFI.lock().unwrap();
+            let now = chrono::Utc::now().timestamp();
+
+            let should_refresh = match *cache {
+                Some((last_time, _)) => now - last_time >= 10,
+                None => true,
+            };
+
+            if should_refresh {
+                let fresh = get_active_wifi_details();
+                let val = if let Some(wifi_info) = fresh {
+                    wifi_info
+                } else {
+                    let is_ethernet_active = active_adapter_name.to_lowercase().contains("ethernet") || active_adapter_name.to_lowercase().contains("lan");
+                    ActiveConnectionDetails {
+                        connection_type: if is_ethernet_active { "ethernet".to_string() } else { "none".to_string() },
+                        ssid: None,
+                        signal_percent: if is_ethernet_active { Some(100) } else { None },
+                        radio_type: if is_ethernet_active { Some("Gigabit Ethernet (802.3)".to_string()) } else { None },
+                        channel: None,
+                        authentication: if is_ethernet_active { Some("Direct Wired (No Password)".to_string()) } else { None },
+                        link_speed_mbps: if is_ethernet_active { Some(1000) } else { None },
+                        bssid: None,
+                        is_wired: is_ethernet_active,
+                    }
+                };
+                *cache = Some((now, val.clone()));
+                val
+            } else {
+                cache.as_ref().map(|(_, d)| d.clone()).unwrap_or_default()
             }
         };
 

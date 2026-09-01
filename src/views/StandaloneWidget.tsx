@@ -119,27 +119,28 @@ export const StandaloneWidget: React.FC = () => {
       });
     }
 
-    // High-frequency 500ms polling to guarantee live speed numbers never freeze at 0
-    const pollMetrics = () => {
-      fetch('http://127.0.0.1:9090/api/metrics')
-        .then((res) => res.json())
-        .then((data) => {
-          const parsed = parseMetrics(data);
-          if (parsed) {
-            setMetrics(parsed);
-          }
-        })
-        .catch(() => {});
-    };
-
-    pollMetrics();
-    const interval = setInterval(pollMetrics, 500);
+    let pollInterval: any;
+    if (!isTauriEnv) {
+      const pollMetrics = () => {
+        fetch('http://127.0.0.1:9090/api/metrics')
+          .then((res) => res.json())
+          .then((data) => {
+            const parsed = parseMetrics(data);
+            if (parsed) {
+              setMetrics(parsed);
+            }
+          })
+          .catch(() => {});
+      };
+      pollMetrics();
+      pollInterval = setInterval(pollMetrics, 1000);
+    }
 
     return () => {
       window.removeEventListener('storage', handleStorage);
       if (unlisten) unlisten();
       if (unlistenStyle) unlistenStyle();
-      clearInterval(interval);
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, []);
 

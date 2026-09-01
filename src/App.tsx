@@ -278,20 +278,9 @@ export function App() {
         unlistenAdapters = unlisten;
       });
 
-      const appPoller = setInterval(() => {
-        invoke<AppBandwidthItem[]>('get_per_app_bandwidth_command')
-          .then((data) => { if (data) setAppBandwidthList(data); })
-          .catch(() => {});
-
-        invoke<string[]>('get_blocked_apps_command')
-          .then((data) => { if (data) setBlockedApps(data); })
-          .catch(() => {});
-      }, 2000);
-
       return () => {
         if (unlistenMetrics) unlistenMetrics();
         if (unlistenAdapters) unlistenAdapters();
-        clearInterval(appPoller);
       };
     } else {
       // BROWSER SYNC (Live polling from local Rust backend http://127.0.0.1:9090)
@@ -352,8 +341,33 @@ export function App() {
         .then((data) => { if (Array.isArray(data)) setBlockedApps(data); })
         .catch(() => {});
 
+      fetch('http://127.0.0.1:9090/api/latency-history')
+        .then((res) => res.json())
+        .then((data) => { if (data) setLatencyStats(data); })
+        .catch(() => {});
+
       const livePoller = setInterval(fetchLiveData, 1000);
-      const browserAppsPoller = setInterval(() => {
+
+      return () => {
+        clearInterval(livePoller);
+      };
+    }
+  }, [scanWifiNetworks, refreshAllData]);
+
+  // Only query per-app bandwidth when user is actively viewing the Applications tab (0% background CPU impact during gaming)
+  useEffect(() => {
+    if (currentTab !== 'apps') return;
+
+    const fetchAppsData = () => {
+      if (isNativeTauri) {
+        invoke<AppBandwidthItem[]>('get_per_app_bandwidth_command')
+          .then((data) => { if (data) setAppBandwidthList(data); })
+          .catch(() => {});
+
+        invoke<string[]>('get_blocked_apps_command')
+          .then((data) => { if (data) setBlockedApps(data); })
+          .catch(() => {});
+      } else {
         fetch('http://127.0.0.1:9090/api/apps-bandwidth')
           .then((res) => res.json())
           .then((data) => { if (Array.isArray(data) && data.length > 0) setAppBandwidthList(data); })
@@ -363,19 +377,13 @@ export function App() {
           .then((res) => res.json())
           .then((data) => { if (Array.isArray(data)) setBlockedApps(data); })
           .catch(() => {});
-      }, 2000);
+      }
+    };
 
-      fetch('http://127.0.0.1:9090/api/latency-history')
-        .then((res) => res.json())
-        .then((data) => { if (data) setLatencyStats(data); })
-        .catch(() => {});
-
-      return () => {
-        clearInterval(livePoller);
-        clearInterval(browserAppsPoller);
-      };
-    }
-  }, [scanWifiNetworks, refreshAllData]);
+    fetchAppsData();
+    const interval = setInterval(fetchAppsData, 3000);
+    return () => clearInterval(interval);
+  }, [currentTab, isNativeTauri]);
 
   const handleSelectLatencyRange = (range: string) => {
     if (isNativeTauri) {

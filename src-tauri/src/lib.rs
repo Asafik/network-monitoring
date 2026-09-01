@@ -493,13 +493,24 @@ pub fn run() {
                         );
                     }
 
-                    // Keep widget dynamically docked and persistently topmost on the taskbar
+                    // Keep widget dynamically docked and handle Fullscreen Game Auto-Hide
                     if taskbar_dock::is_widget_enabled() {
                         if let Some(widget) = app_handle.get_webview_window("widget") {
-                            let (x, y) = taskbar_dock::get_taskbar_dock_position(125, 38);
-                            let _ = widget.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
                             if let Ok(hwnd) = widget.hwnd() {
-                                taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
+                                let hwnd_isize = hwnd.0 as isize;
+                                if taskbar_dock::is_fullscreen_app_active(hwnd_isize) {
+                                    // User is playing a Fullscreen Game: Auto-hide widget so it NEVER blocks the game!
+                                    let _ = widget.hide();
+                                } else {
+                                    // Normal desktop mode: Show and keep docked on taskbar
+                                    let is_vis = widget.is_visible().unwrap_or(false);
+                                    if !is_vis {
+                                        let _ = widget.show();
+                                    }
+                                    let (x, y) = taskbar_dock::get_taskbar_dock_position(125, 38);
+                                    let _ = widget.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                                    taskbar_dock::make_taskbar_persistent(hwnd_isize);
+                                }
                             }
                         }
                     }
@@ -518,21 +529,6 @@ pub fn run() {
                 }
                 let _ = widget.show();
             }
-
-            // High-frequency (50ms) background taskbar keeper: Guarantees 0ms flicker / never disappears even when opening Start/Search
-            let widget_keeper_handle = app.handle().clone();
-            std::thread::spawn(move || {
-                loop {
-                    if taskbar_dock::is_widget_enabled() {
-                        if let Some(widget) = widget_keeper_handle.get_webview_window("widget") {
-                            if let Ok(hwnd) = widget.hwnd() {
-                                taskbar_dock::make_taskbar_persistent(hwnd.0 as isize);
-                            }
-                        }
-                    }
-                    std::thread::sleep(Duration::from_millis(50));
-                }
-            });
 
             // If launched manually (not via Windows Boot Autostart), display main dashboard window immediately
             let is_autostart = std::env::args().any(|a| a == "--autostart" || a == "--minimized" || a == "--silent");
