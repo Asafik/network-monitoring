@@ -1,6 +1,6 @@
 [package]
 name = "netspeedx"
-version = "1.2.1"
+version = "1.2.2"
 description = "NetSpeedX Windows Network Monitor"
 authors = ["you"]
 edition = "2021"

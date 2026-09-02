@@ -119,28 +119,25 @@ export const StandaloneWidget: React.FC = () => {
       });
     }
 
-    let pollInterval: any;
-    if (!isTauriEnv) {
-      const pollMetrics = () => {
-        fetch('http://127.0.0.1:9090/api/metrics')
-          .then((res) => res.json())
-          .then((data) => {
-            const parsed = parseMetrics(data);
-            if (parsed) {
-              setMetrics(parsed);
-            }
-          })
-          .catch(() => {});
-      };
-      pollMetrics();
-      pollInterval = setInterval(pollMetrics, 1000);
-    }
+    const pollMetrics = () => {
+      fetch('http://127.0.0.1:9090/api/metrics')
+        .then((res) => res.json())
+        .then((data) => {
+          const parsed = parseMetrics(data);
+          if (parsed) {
+            setMetrics(parsed);
+          }
+        })
+        .catch(() => {});
+    };
+    pollMetrics();
+    const pollInterval = setInterval(pollMetrics, 1000);
 
     return () => {
       window.removeEventListener('storage', handleStorage);
       if (unlisten) unlisten();
       if (unlistenStyle) unlistenStyle();
-      if (pollInterval) clearInterval(pollInterval);
+      clearInterval(pollInterval);
     };
   }, []);
 

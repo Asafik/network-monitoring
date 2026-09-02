@@ -75,7 +75,11 @@ export const AppsView: React.FC<AppsViewProps> = ({
   // Check if an app is blocked in the firewall list
   const isAppBlocked = (appName: string): boolean => {
     const clean = getCleanName(appName).toLowerCase();
-    return blockedApps.some((b) => b.toLowerCase().includes(clean) || clean.includes(b.toLowerCase()));
+    const full = appName.trim().toLowerCase();
+    return blockedApps.some((b) => {
+      const bLower = b.toLowerCase();
+      return bLower === clean || bLower === full || bLower.includes(clean) || clean.includes(bLower);
+    });
   };
 
   // Block handler with feedback
@@ -86,17 +90,17 @@ export const AppsView: React.FC<AppsViewProps> = ({
       setTimeout(() => setActionFeedback(null), 3000);
       return;
     }
-    setLoadingAppMap((prev) => ({ ...prev, [clean]: true }));
-    setActionFeedback({ message: `Menerapkan pemutusan koneksi internet untuk ${clean}...`, type: 'loading' });
+    setLoadingAppMap((prev) => ({ ...prev, [clean]: true, [appName]: true }));
+    setActionFeedback({ message: `Menerapkan pemutusan koneksi internet untuk ${appName}...`, type: 'loading' });
     try {
       if (onBlockApp) {
-        const msg = await onBlockApp(clean);
-        setActionFeedback({ message: msg || `Akses internet untuk ${clean} berhasil diblokir!`, type: 'success' });
+        const msg = await onBlockApp(appName);
+        setActionFeedback({ message: msg || `Akses internet untuk ${appName} berhasil diblokir!`, type: 'success' });
       }
     } catch {
-      setActionFeedback({ message: `Gagal memblokir ${clean}`, type: 'error' });
+      setActionFeedback({ message: `Gagal memblokir ${appName}`, type: 'error' });
     } finally {
-      setLoadingAppMap((prev) => ({ ...prev, [clean]: false }));
+      setLoadingAppMap((prev) => ({ ...prev, [clean]: false, [appName]: false }));
       setTimeout(() => setActionFeedback(null), 3500);
     }
   };
@@ -104,17 +108,17 @@ export const AppsView: React.FC<AppsViewProps> = ({
   // Unblock handler with feedback
   const handleUnblock = async (appName: string) => {
     const clean = getCleanName(appName);
-    setLoadingAppMap((prev) => ({ ...prev, [clean]: true }));
-    setActionFeedback({ message: `Memulihkan koneksi internet untuk ${clean}...`, type: 'loading' });
+    setLoadingAppMap((prev) => ({ ...prev, [clean]: true, [appName]: true }));
+    setActionFeedback({ message: `Memulihkan koneksi internet untuk ${appName}...`, type: 'loading' });
     try {
       if (onUnblockApp) {
-        const msg = await onUnblockApp(clean);
-        setActionFeedback({ message: msg || `Koneksi internet untuk ${clean} telah dipulihkan!`, type: 'success' });
+        const msg = await onUnblockApp(appName);
+        setActionFeedback({ message: msg || `Koneksi internet untuk ${appName} telah dipulihkan!`, type: 'success' });
       }
     } catch {
-      setActionFeedback({ message: `Gagal memulihkan ${clean}`, type: 'error' });
+      setActionFeedback({ message: `Gagal memulihkan ${appName}`, type: 'error' });
     } finally {
-      setLoadingAppMap((prev) => ({ ...prev, [clean]: false }));
+      setLoadingAppMap((prev) => ({ ...prev, [clean]: false, [appName]: false }));
       setTimeout(() => setActionFeedback(null), 3500);
     }
   };

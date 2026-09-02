@@ -584,13 +584,13 @@ export function App() {
     try {
       if (isNativeTauri) {
         const list = await invoke<string[]>('get_blocked_apps_command');
-        if (list && list.length > 0) {
-          saveBlockedList(Array.from(new Set([...blockedApps, ...list])));
+        if (Array.isArray(list)) {
+          saveBlockedList(list);
         }
       } else {
         const res = await fetch('http://127.0.0.1:9090/api/blocked-apps').then((r) => r.json());
-        if (Array.isArray(res) && res.length > 0) {
-          saveBlockedList(Array.from(new Set([...blockedApps, ...res])));
+        if (Array.isArray(res)) {
+          saveBlockedList(res);
         }
       }
     } catch {
@@ -625,8 +625,19 @@ export function App() {
 
   const handleUnblockApp = async (appName: string): Promise<string> => {
     const clean = appName.trim();
+    const cleanLower = clean.toLowerCase();
+    const firstWord = cleanLower.split(' ')[0];
+
     // 1. Immediately update UI state & localStorage permanently
-    const nextList = blockedApps.filter((a) => a.toLowerCase() !== clean.toLowerCase());
+    const nextList = blockedApps.filter((a) => {
+      const aLower = a.toLowerCase();
+      return (
+        aLower !== cleanLower &&
+        aLower !== firstWord &&
+        !aLower.includes(firstWord) &&
+        !cleanLower.includes(aLower)
+      );
+    });
     saveBlockedList(nextList);
 
     try {

@@ -212,15 +212,20 @@ async fn unblock_app_command(state: State<'_, AppState>, app_name: String) -> Re
 async fn get_blocked_apps_command(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     let db = state.db.clone();
     tokio::task::spawn_blocking(move || {
-        let mut list = db.get_blocked_apps().unwrap_or_default();
         let fw_list = app_blocker::get_blocked_apps();
-        for app in fw_list {
-            if !list.contains(&app) {
-                let _ = db.insert_blocked_app(&app);
-                list.push(app);
+        // Prune DB items that are no longer in firewall
+        let db_list = db.get_blocked_apps().unwrap_or_default();
+        for old in &db_list {
+            if !fw_list.contains(old) {
+                let _ = db.remove_blocked_app(old);
             }
         }
-        list
+        for app in &fw_list {
+            if !db_list.contains(app) {
+                let _ = db.insert_blocked_app(app);
+            }
+        }
+        fw_list
     })
     .await
     .map_err(|e| e.to_string())
